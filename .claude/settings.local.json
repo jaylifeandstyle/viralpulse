@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(grep -E \"^tsx$|^ts-node$\")",
+      "Bash(xargs ls *)",
+      "Bash(grep -E \"^dotenv$\")",
+      "Bash(node -e \"require\\('fs'\\).readFileSync\\('.env.local'\\)\")",
+      "Bash(npm install *)",
+      "Bash(kill 6170)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:3000)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(curl -s -X POST http://localhost:3000/api/force-poll)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s http://localhost:3000/api/test-brain)",
+      "Bash(python3 -m json.tool)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(env)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(curl -s -X POST http://localhost:3000/api/generate-opportunity -H 'Content-Type: application/json' -d '{ *)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(curl -s -X POST http://localhost:3000/api/active-galaxy -H 'Content-Type: application/json' -d '{\"galaxyId\":\"galaxy.03\"}')",
+      "Bash(curl -s http://localhost:3000/api/active-galaxy)",
+      "Bash(curl -s -X POST http://localhost:3000/api/active-galaxy -H 'Content-Type: application/json' -d '{\"galaxyId\":\"galaxy.02\"}')",
+      "WebFetch(domain:docs.x.com)",
+      "Bash(ps -p 42244 -o lstart=)",
+      "Bash(ps -axo lstart,pid,command)",
+      "Bash(pkill -f \"run-galaxy04\")",
+      "Bash(curl -s -X POST http://localhost:3000/api/cron/poll)",
+      "Bash(npx tsx -e ' *)",
+      "Bash(curl -s -i -A \"Mozilla/5.0 \\(Macintosh\\)\" \"http://localhost:3000/api/r/x?text=Hello%20World\")",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 18_0 like Mac OS X\\)\" \"http://localhost:3000/api/r/x?text=Hello%20World\")",
+      "Bash(curl -s http://localhost:3000/api/post-to-x)",
+      "Bash(curl -s -X POST http://localhost:3000/api/post-to-x -H 'Content-Type: application/json' -d '{\"text\":\"This is a test post.\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/post-to-x -H 'Content-Type: application/json' -d '{}')",
+      "Bash(curl -s http://localhost:3000/api/opportunities)",
+      "Bash(curl -sL --max-time 8 \"https://feeds.bbci.co.uk/news/world/rss.xml\")"
+    ]
+  }
+}

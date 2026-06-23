@@ -1,0 +1,24 @@
+# Anything checked-in but not needed in the deployed bundle.
+
+# Local data store — recreated per-environment, NOT shipped
+data/
+
+# Local env files — env vars go in Vercel dashboard
+.env.local
+.env*.local
+
+# Local test scripts — invoked via npm run, not the web app
+src/scripts/
+
+# Build artifacts
+.next/
+dist/
+
+# Dev metadata
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# Memory dir if you ever add one
+memory/
