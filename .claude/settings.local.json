@@ -36,7 +36,21 @@
       "Bash(curl -s -X POST http://localhost:3000/api/post-to-x -H 'Content-Type: application/json' -d '{\"text\":\"This is a test post.\"}')",
       "Bash(curl -s -X POST http://localhost:3000/api/post-to-x -H 'Content-Type: application/json' -d '{}')",
       "Bash(curl -s http://localhost:3000/api/opportunities)",
-      "Bash(curl -sL --max-time 8 \"https://feeds.bbci.co.uk/news/world/rss.xml\")"
+      "Bash(curl -sL --max-time 8 \"https://feeds.bbci.co.uk/news/world/rss.xml\")",
+      "Bash(gh auth *)",
+      "Bash(git config *)",
+      "Bash(ssh -T git@github.com)",
+      "Bash(cd /Users/jay/Desktop/viralpulse *)",
+      "Bash(awk '{print $1}')",
+      "Bash(curl -sI \"https://api.github.com/repos/jaylifeandstyle/viralpulse/contents/.env.example\")",
+      "Bash(curl -sI \"https://raw.githubusercontent.com/jaylifeandstyle/viralpulse/main/.env.example\")",
+      "Bash(git check-ignore *)",
+      "Bash(awk -F= '{ *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(GIT_ASKPASS= GIT_TERMINAL_PROMPT=0 git push)",
+      "Bash(git fetch *)",
+      "Bash(git remote *)"
     ]
   }
 }
