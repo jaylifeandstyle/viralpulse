@@ -1,23 +1,22 @@
 // src/store/store-kv.ts
 //
-// Vercel KV backend. Used in production deployments where the filesystem
-// is ephemeral (every serverless invocation gets a fresh /tmp; data/ is
-// read-only). Stores the entire opportunity array as one JSON value under
-// a single key — matches the file backend's semantics exactly.
+// Upstash Redis backend (Vercel-recommended after @vercel/kv was deprecated
+// in 2025). Same store semantics as the file backend — single JSON value
+// under one key, dedupe + age-out + max-20 enforced in the dispatcher's
+// helpers. Stays a single key because the store holds ≤ 20 items, the
+// blob is < 50KB, and the read-modify-write race characteristic matches
+// the file backend (no regression).
 //
-// Why a single key (not a Redis sorted set or list):
-//   - The store holds ≤ MAX_ITEMS (20). One JSON blob is < 50KB.
-//   - Reading the whole array on every push is fine at this scale.
-//   - Read-modify-write race is the same characteristic as the file
-//     backend — no regression.
+// Env vars (auto-injected by Vercel when you connect an Upstash Redis
+// integration to your project):
+//   UPSTASH_REDIS_REST_URL    (https://… — the REST endpoint, NOT redis://)
+//   UPSTASH_REDIS_REST_TOKEN  (bearer token)
 //
-// Required env vars (auto-set by Vercel when you provision a KV database
-// from the Storage tab of your project):
-//   KV_REST_API_URL
-//   KV_REST_API_TOKEN
-// (KV_REST_API_READ_ONLY_TOKEN is also auto-set but we don't need it.)
+// Redis.fromEnv() reads exactly those two env var names. The dispatcher
+// in opportunity-store.ts also checks for those names before falling
+// back to the file backend — keep them in sync.
 
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import {
   StoredOpportunity,
   MAX_ITEMS,
@@ -25,11 +24,12 @@ import {
   isRecentDuplicate,
 } from './store-shared';
 
+const redis = Redis.fromEnv();
+
 const KEY = 'viralpulse:opportunities';
 
 async function read(): Promise<StoredOpportunity[]> {
-  // @vercel/kv parses JSON automatically when you set with set(key, obj).
-  const data = await kv.get<StoredOpportunity[]>(KEY);
+  const data = await redis.get<StoredOpportunity[]>(KEY);
   return Array.isArray(data) ? data : [];
 }
 
@@ -51,11 +51,14 @@ export async function pushOpportunityKv(
     .filter((o) => isFresh(o.detectedAt))
     .slice(0, MAX_ITEMS);
 
-  await kv.set(KEY, updated);
+  await redis.set(KEY, updated);
   return true;
 }
 
 export async function removeOpportunityKv(id: string): Promise<void> {
   const current = await read();
-  await kv.set(KEY, current.filter((o) => o.id !== id));
+  await redis.set(
+    KEY,
+    current.filter((o) => o.id !== id),
+  );
 }
