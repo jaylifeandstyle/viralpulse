@@ -42,6 +42,8 @@ const TEST_TOPICS = [
 
 const POLL_INTERVAL_MS = 10_000;
 
+const SHOW_DEV_UI = process.env.NEXT_PUBLIC_SHOW_DEV_UI === 'true';
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -400,7 +402,7 @@ export default function Dashboard() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">ViralPulse</h1>
-            <p className="text-gray-500 text-sm mt-0.5">AI growth intelligence · journalist edition</p>
+            <p className="text-gray-500 text-sm mt-0.5">AI growth intelligence · journalist / content creator edition</p>
           </div>
           <div className="flex items-center gap-3">
             {detectorActive && (
@@ -409,9 +411,11 @@ export default function Dashboard() {
                 Detector live
               </div>
             )}
-            <div className="px-3 py-1.5 bg-gray-800 rounded-full text-xs text-gray-400">
-              {activeGalaxy}
-            </div>
+            {SHOW_DEV_UI && (
+              <div className="px-3 py-1.5 bg-gray-800 rounded-full text-xs text-gray-400">
+                {activeGalaxy}
+              </div>
+            )}
           </div>
         </div>
 
@@ -419,6 +423,7 @@ export default function Dashboard() {
 
           {/* ── Left Sidebar — Controls ── */}
           <div className="col-span-3 space-y-6">
+            {SHOW_DEV_UI && (
             <div className="bg-gray-900 rounded-2xl p-5">
               <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-5">Controls</h2>
               <div className="space-y-6">
@@ -517,6 +522,7 @@ export default function Dashboard() {
 
               </div>
             </div>
+            )}
 
             {/* Stats */}
             <div className="bg-gray-900 rounded-2xl p-5 space-y-4">
@@ -535,12 +541,14 @@ export default function Dashboard() {
                   <span className="text-yellow-400 font-medium">{actNowCount}</span>
                 </div>
               </div>
-              <div className="border-t border-gray-800 pt-4">
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  Detector polls X every 20 min.<br />
-                  Dashboard refreshes every 10 s.
-                </p>
-              </div>
+              {SHOW_DEV_UI && (
+                <div className="border-t border-gray-800 pt-4">
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Detector polls X every 20 min.<br />
+                    Dashboard refreshes every 10 s.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -554,10 +562,14 @@ export default function Dashboard() {
             {opportunities.length === 0 ? (
               <div className="text-center py-20 text-gray-600 border border-dashed border-gray-800 rounded-2xl space-y-3">
                 <p className="text-lg">No opportunities yet.</p>
-                <p className="text-sm">
-                  Click <span className="text-gray-300">⚡ Simulate</span> to test with sample signals,
-                  <br />or <span className="text-gray-300">🔄 Force Poll Now</span> to hit the X API live.
-                </p>
+                {SHOW_DEV_UI ? (
+                  <p className="text-sm">
+                    Click <span className="text-gray-300">⚡ Simulate</span> to test with sample signals,
+                    <br />or <span className="text-gray-300">🔄 Force Poll Now</span> to hit the X API live.
+                  </p>
+                ) : (
+                  <p className="text-sm">Check back soon — new stories drop every hour.</p>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
