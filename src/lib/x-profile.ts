@@ -11,8 +11,8 @@
  */
 
 import { TwitterApi } from 'twitter-api-v2';
-import { readProfile, writeProfile } from '@/store/profile-store';
-import { StoredProfile } from '@/store/store-shared';
+import { readProfile, writeProfile, readProfileOverrides } from '@/store/profile-store';
+import { StoredProfile, StoredProfileOverrides } from '@/store/store-shared';
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -66,23 +66,44 @@ async function fetchFromX(handle: string): Promise<StoredProfile | null> {
   }
 }
 
+function applyOverrides(
+  base: StoredProfile | null,
+  overrides: StoredProfileOverrides | null,
+  handle: string,
+): StoredProfile | null {
+  if (!base && !overrides) return null;
+  const baseSafe = base ?? { handle, fetchedAt: new Date(0).toISOString() };
+  if (!overrides) return baseSafe;
+  return {
+    ...baseSafe,
+    displayName: overrides.displayName ?? baseSafe.displayName,
+    bio: overrides.bio ?? baseSafe.bio,
+    avatarUrl: overrides.avatarUrl ?? baseSafe.avatarUrl,
+    bannerUrl: overrides.bannerUrl ?? baseSafe.bannerUrl,
+  };
+}
+
 /**
  * Cache-first profile lookup. Returns the cached value if fresh; otherwise
  * tries a refresh from X. If X is down/unreachable, returns the stale
- * cache so the page still renders.
+ * cache so the page still renders. User-set overrides are layered on top.
  */
 export async function getProfile(handle: string): Promise<StoredProfile | null> {
   const normalized = handle.toLowerCase();
-  const cached = await readProfile(normalized);
+  const [cached, overrides] = await Promise.all([
+    readProfile(normalized),
+    readProfileOverrides(normalized),
+  ]);
 
-  if (cached && !isStale(cached)) return cached;
+  // Fresh cache → return with overrides applied.
+  if (cached && !isStale(cached)) return applyOverrides(cached, overrides, normalized);
 
   const fresh = await fetchFromX(normalized);
   if (fresh) {
     await writeProfile(fresh);
-    return fresh;
+    return applyOverrides(fresh, overrides, normalized);
   }
 
   // Refresh failed — fall back to whatever we had cached, even if stale.
-  return cached;
+  return applyOverrides(cached, overrides, normalized);
 }

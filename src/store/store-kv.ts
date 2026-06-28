@@ -21,6 +21,7 @@ import {
   StoredOpportunity,
   StoredPost,
   StoredProfile,
+  StoredProfileOverrides,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -102,4 +103,15 @@ export async function readProfileKv(handle: string): Promise<StoredProfile | nul
 
 export async function writeProfileKv(profile: StoredProfile): Promise<void> {
   await redis.set(PROFILE_KEY(profile.handle), profile);
+}
+
+const OVERRIDES_KEY = (handle: string) =>
+  `viralpulse:profile-overrides:${handle.toLowerCase()}`;
+
+export async function readProfileOverridesKv(handle: string): Promise<StoredProfileOverrides | null> {
+  return (await redis.get<StoredProfileOverrides>(OVERRIDES_KEY(handle))) ?? null;
+}
+
+export async function writeProfileOverridesKv(o: StoredProfileOverrides): Promise<void> {
+  await redis.set(OVERRIDES_KEY(o.handle), o);
 }

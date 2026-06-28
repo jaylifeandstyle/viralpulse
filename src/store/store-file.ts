@@ -13,6 +13,7 @@ import {
   StoredOpportunity,
   StoredPost,
   StoredProfile,
+  StoredProfileOverrides,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -133,4 +134,24 @@ export async function readProfileFile(handle: string): Promise<StoredProfile | n
 export async function writeProfileFile(profile: StoredProfile): Promise<void> {
   ensureProfilesDir();
   fs.writeFileSync(profilePath(profile.handle), JSON.stringify(profile, null, 2), 'utf-8');
+}
+
+function overridesPath(handle: string) {
+  return path.join(PROFILES_DIR, `${handle.toLowerCase()}.overrides.json`);
+}
+
+export async function readProfileOverridesFile(handle: string): Promise<StoredProfileOverrides | null> {
+  ensureProfilesDir();
+  const p = overridesPath(handle);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+export async function writeProfileOverridesFile(o: StoredProfileOverrides): Promise<void> {
+  ensureProfilesDir();
+  fs.writeFileSync(overridesPath(o.handle), JSON.stringify(o, null, 2), 'utf-8');
 }

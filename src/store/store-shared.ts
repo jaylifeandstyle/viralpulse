@@ -84,6 +84,23 @@ export type StoredProfile = {
   fetchedAt: string;
 };
 
+/**
+ * User-set overrides layered on top of the X-fetched profile.
+ *
+ * Kept separate from StoredProfile so an X data refresh (which happens
+ * automatically on the 24h cache cycle) can never clobber the user's
+ * curated values. Any field that's set here wins over the X version at
+ * read time; unset fields fall through to the X data.
+ */
+export type StoredProfileOverrides = {
+  handle: string;
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  bannerUrl?: string;
+  updatedAt: string;
+};
+
 export function isFresh(iso: string): boolean {
   return Date.now() - new Date(iso).getTime() < MAX_AGE_HOURS * 60 * 60 * 1000;
 }

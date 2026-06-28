@@ -16,7 +16,11 @@
     "galaxy04": "tsx --env-file=.env.local src/scripts/run-galaxy04.ts",
     "test:galaxy05": "tsx --env-file=.env.local src/scripts/test-galaxy05.ts",
     "galaxy05": "tsx --env-file=.env.local src/scripts/run-galaxy05.ts",
-    "telegram:setup": "tsx --env-file=.env.local src/scripts/telegram-setup.ts"
+    "test:galaxy07": "tsx --env-file=.env.local src/scripts/test-galaxy07.ts",
+    "galaxy07": "tsx --env-file=.env.local src/scripts/run-galaxy07.ts",
+    "telegram:setup": "tsx --env-file=.env.local src/scripts/telegram-setup.ts",
+    "profile:edit": "tsx --env-file=.env.local src/scripts/profile-edit.ts",
+    "backfill:posts": "tsx --env-file=.env.local src/scripts/backfill-posts.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",

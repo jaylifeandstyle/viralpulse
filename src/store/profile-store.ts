@@ -5,14 +5,16 @@
  * stores. Holds the cached X profile data (name, bio, avatar, follower
  * counts) plus future user overrides.
  */
-import { StoredProfile } from './store-shared';
+import { StoredProfile, StoredProfileOverrides } from './store-shared';
 
-export type { StoredProfile } from './store-shared';
+export type { StoredProfile, StoredProfileOverrides } from './store-shared';
 
 type ProfileBackend = {
   name: string;
   read: (handle: string) => Promise<StoredProfile | null>;
   write: (profile: StoredProfile) => Promise<void>;
+  readOverrides: (handle: string) => Promise<StoredProfileOverrides | null>;
+  writeOverrides: (o: StoredProfileOverrides) => Promise<void>;
 };
 
 let _backend: ProfileBackend | null = null;
@@ -30,10 +32,22 @@ async function getBackend(): Promise<ProfileBackend> {
 
   if (useKv) {
     const m = await import('./store-kv');
-    _backend = { name: 'kv', read: m.readProfileKv, write: m.writeProfileKv };
+    _backend = {
+      name: 'kv',
+      read: m.readProfileKv,
+      write: m.writeProfileKv,
+      readOverrides: m.readProfileOverridesKv,
+      writeOverrides: m.writeProfileOverridesKv,
+    };
   } else {
     const m = await import('./store-file');
-    _backend = { name: 'file', read: m.readProfileFile, write: m.writeProfileFile };
+    _backend = {
+      name: 'file',
+      read: m.readProfileFile,
+      write: m.writeProfileFile,
+      readOverrides: m.readProfileOverridesFile,
+      writeOverrides: m.writeProfileOverridesFile,
+    };
   }
   return _backend;
 }
@@ -46,4 +60,14 @@ export async function readProfile(handle: string): Promise<StoredProfile | null>
 export async function writeProfile(profile: StoredProfile): Promise<void> {
   const b = await getBackend();
   await b.write(profile);
+}
+
+export async function readProfileOverrides(handle: string): Promise<StoredProfileOverrides | null> {
+  const b = await getBackend();
+  return b.readOverrides(handle);
+}
+
+export async function writeProfileOverrides(o: StoredProfileOverrides): Promise<void> {
+  const b = await getBackend();
+  await b.writeOverrides(o);
 }
