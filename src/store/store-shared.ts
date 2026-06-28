@@ -70,6 +70,20 @@ export type StoredPost = {
   };
 };
 
+// ─── Profiles (single-profile launch, scoped by handle for forward-compat)
+
+export type StoredProfile = {
+  handle: string;          // lowercase, no '@'
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  bannerUrl?: string;
+  followersCount?: number;
+  followingCount?: number;
+  /** ISO of last refresh from X (so the cache layer can decide TTL). */
+  fetchedAt: string;
+};
+
 export function isFresh(iso: string): boolean {
   return Date.now() - new Date(iso).getTime() < MAX_AGE_HOURS * 60 * 60 * 1000;
 }

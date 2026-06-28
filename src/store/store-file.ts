@@ -12,6 +12,7 @@ import path from 'path';
 import {
   StoredOpportunity,
   StoredPost,
+  StoredProfile,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -104,4 +105,32 @@ export async function readPostsFile(handle: string, limit?: number): Promise<Sto
 
 export async function removePostFile(handle: string, tweetId: string): Promise<void> {
   writePosts(handle, readPosts(handle).filter((p) => p.tweetId !== tweetId));
+}
+
+// ─── Profiles backend ────────────────────────────────────────────────────
+
+const PROFILES_DIR = path.join(DATA_DIR, 'profiles');
+
+function ensureProfilesDir() {
+  if (!fs.existsSync(PROFILES_DIR)) fs.mkdirSync(PROFILES_DIR, { recursive: true });
+}
+
+function profilePath(handle: string) {
+  return path.join(PROFILES_DIR, `${handle.toLowerCase()}.json`);
+}
+
+export async function readProfileFile(handle: string): Promise<StoredProfile | null> {
+  ensureProfilesDir();
+  const p = profilePath(handle);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+export async function writeProfileFile(profile: StoredProfile): Promise<void> {
+  ensureProfilesDir();
+  fs.writeFileSync(profilePath(profile.handle), JSON.stringify(profile, null, 2), 'utf-8');
 }

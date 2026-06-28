@@ -20,6 +20,7 @@ import { Redis } from '@upstash/redis';
 import {
   StoredOpportunity,
   StoredPost,
+  StoredProfile,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -89,4 +90,16 @@ export async function removePostKv(handle: string, tweetId: string): Promise<voi
     POSTS_KEY(handle),
     current.filter((p) => p.tweetId !== tweetId),
   );
+}
+
+// ─── Profiles backend ────────────────────────────────────────────────────
+
+const PROFILE_KEY = (handle: string) => `viralpulse:profile:${handle.toLowerCase()}`;
+
+export async function readProfileKv(handle: string): Promise<StoredProfile | null> {
+  return (await redis.get<StoredProfile>(PROFILE_KEY(handle))) ?? null;
+}
+
+export async function writeProfileKv(profile: StoredProfile): Promise<void> {
+  await redis.set(PROFILE_KEY(profile.handle), profile);
 }
