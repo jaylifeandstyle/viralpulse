@@ -6,12 +6,17 @@
  * from the X syndication CDN — free, no paid API needed — and writes
  * a StoredPost.
  *
- * Usage:
- *   npm run backfill:posts -- 1234567890 0987654321
- *   npm run backfill:posts -- $(cat tweet-ids.txt)
+ * Tweet IDs are the last path segment of a tweet URL:
+ *   https://x.com/jlces/status/1828492847362948192
+ *                                ^^^^^^^^^^^^^^^^^^^ this part
  *
- * Notes:
- * - The handle on each post is VP_OWNER_HANDLE.
+ * Usage:
+ *   npm run backfill:posts -- <your-tweet-id> <another-tweet-id>
+ *
+ * Safety:
+ * - Refuses to import a tweet whose syndication-reported author doesn't
+ *   match VP_OWNER_HANDLE. Prevents accidentally pasting a stranger's ID
+ *   and ending up with their tweet shown on your profile.
  * - Already-present tweet IDs are deduped silently by the post store.
  * - Tweets not in the syndication CDN (deleted / suspended / too new)
  *   are reported and skipped, not fatal.
@@ -31,12 +36,19 @@ async function main() {
   const handle = (process.env.VP_OWNER_HANDLE ?? 'jay').toLowerCase();
   let saved = 0;
   let skipped = 0;
+  let rejected = 0;
 
   for (const id of ids) {
     const tweet = await fetchTweetSyndication(id);
     if (!tweet) {
       console.warn(`✗ ${id}  not found in syndication CDN — skipped`);
       skipped++;
+      continue;
+    }
+    const author = tweet.author.screenName.toLowerCase();
+    if (author !== handle) {
+      console.warn(`✗ ${id}  belongs to @${author}, not @${handle} — rejected`);
+      rejected++;
       continue;
     }
     await savePost({
@@ -57,7 +69,7 @@ async function main() {
     saved++;
   }
 
-  console.log(`\nDone — ${saved} saved, ${skipped} skipped.`);
+  console.log(`\nDone — ${saved} saved, ${skipped} skipped, ${rejected} rejected (wrong author).`);
 }
 
 main().catch((err) => {
