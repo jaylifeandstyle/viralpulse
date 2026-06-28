@@ -32,14 +32,8 @@ export default async function ProfilePage({ params }: { params: Params }) {
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-2xl mx-auto border-x border-gray-800 min-h-screen">
-        {/* Top bar */}
-        <div className="sticky top-0 z-10 backdrop-blur-md bg-gray-950/80 border-b border-gray-800 px-5 py-3">
-          <h2 className="font-bold">{profile?.displayName ?? handle}</h2>
-          <p className="text-xs text-gray-500">{posts.length} posts</p>
-        </div>
-
+    <div className="bg-gray-950 text-white">
+      <div className="max-w-2xl mx-auto border-x border-gray-800 min-h-[calc(100vh-3.5rem)]">
         <ProfileHeader profile={profile} handle={handle} />
 
         {/* Tabs */}

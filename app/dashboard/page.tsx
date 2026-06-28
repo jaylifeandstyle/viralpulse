@@ -423,10 +423,7 @@ export default function Dashboard() {
 
         {/* ── Header ── */}
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">ViralPulse</h1>
-            <p className="text-gray-500 text-sm mt-0.5">AI growth intelligence · journalist / content creator edition</p>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <div className="flex items-center gap-3">
             {detectorActive && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 text-green-400 rounded-full text-xs font-medium">
