@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   StoredOpportunity,
+  StoredPost,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -18,9 +19,18 @@ import {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STORE_PATH = path.join(DATA_DIR, 'opportunities.json');
+const POSTS_DIR = path.join(DATA_DIR, 'posts');
 
 function ensureDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function ensurePostsDir() {
+  if (!fs.existsSync(POSTS_DIR)) fs.mkdirSync(POSTS_DIR, { recursive: true });
+}
+
+function postsPath(handle: string) {
+  return path.join(POSTS_DIR, `${handle.toLowerCase()}.json`);
 }
 
 function read(): StoredOpportunity[] {
@@ -61,4 +71,37 @@ export async function pushOpportunityFile(
 
 export async function removeOpportunityFile(id: string): Promise<void> {
   write(read().filter((o) => o.id !== id));
+}
+
+// ─── Posts backend ───────────────────────────────────────────────────────
+
+function readPosts(handle: string): StoredPost[] {
+  ensurePostsDir();
+  const p = postsPath(handle);
+  if (!fs.existsSync(p)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+
+function writePosts(handle: string, posts: StoredPost[]) {
+  ensurePostsDir();
+  fs.writeFileSync(postsPath(handle), JSON.stringify(posts, null, 2), 'utf-8');
+}
+
+export async function savePostFile(post: StoredPost): Promise<void> {
+  const current = readPosts(post.handle);
+  const dedup = current.filter((p) => p.tweetId !== post.tweetId);
+  writePosts(post.handle, [post, ...dedup]);
+}
+
+export async function readPostsFile(handle: string, limit?: number): Promise<StoredPost[]> {
+  const all = readPosts(handle);
+  return typeof limit === 'number' ? all.slice(0, limit) : all;
+}
+
+export async function removePostFile(handle: string, tweetId: string): Promise<void> {
+  writePosts(handle, readPosts(handle).filter((p) => p.tweetId !== tweetId));
 }

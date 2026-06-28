@@ -1,49 +1,54 @@
-// POST /api/post-to-x   { text: string, imageUrl?: string, oppId?: string }
-//
-// Posts a tweet to X via OAuth 1.0a User Context. Returns { tweetId, url }
-// on success, or { error } with a descriptive message on failure.
-//
-// If oppId is provided, the corresponding opportunity is removed from the
-// store on success — same UX as "Use Draft" already has when the user
-// approves a draft from the modal.
+// POST /api/post-to-x
+// Body: { text, imageUrl?, imageUrls?, videoUrl?, oppId? }
+
 import { NextResponse } from 'next/server';
 import { postToX, isPostingConfigured } from '@/lib/x-poster';
-import { removeOpportunity } from '@/store/opportunity-store';
+import { readOpportunities, removeOpportunity } from '@/store/opportunity-store';
+import { savePost } from '@/store/post-store';
+import { fetchTweetSyndication } from '@/lib/x-syndication';
+
+function parseUrlList(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const urls = raw
+    .map((u) => (typeof u === 'string' ? u.trim() : ''))
+    .filter((u) => /^https?:\/\//i.test(u));
+  return urls.length ? urls.slice(0, 2) : undefined;
+}
 
 export async function POST(req: Request) {
-  // Early guard — gives a clear error before we try to build a client
   if (!isPostingConfigured()) {
     return NextResponse.json(
       {
         success: false,
         error:
-          'X posting is not configured. Add X_ACCESS_TOKEN and X_ACCESS_TOKEN_SECRET to .env.local. See src/lib/x-poster.ts header for setup steps.',
+          'X posting is not configured. Add X_ACCESS_TOKEN and X_ACCESS_TOKEN_SECRET to .env.local.',
         configured: false,
       },
       { status: 503 },
     );
   }
 
-  // ── Parse + validate body
-  let body: { text?: string; imageUrl?: string; oppId?: string };
+  let body: {
+    text?: string;
+    imageUrl?: string;
+    imageUrls?: string[];
+    videoUrl?: string;
+    oppId?: string;
+  };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: 'Invalid JSON body' },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const text = (body.text ?? '').trim();
   const imageUrl = body.imageUrl?.trim() || undefined;
+  const imageUrls = parseUrlList(body.imageUrls);
+  const videoUrl = body.videoUrl?.trim() || undefined;
   const oppId = body.oppId?.trim() || undefined;
 
   if (!text) {
-    return NextResponse.json(
-      { success: false, error: 'text is required' },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: 'text is required' }, { status: 400 });
   }
   if (text.length > 280) {
     return NextResponse.json(
@@ -51,26 +56,66 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
-    return NextResponse.json(
-      { success: false, error: 'imageUrl must be a fully-qualified http(s) URL' },
-      { status: 400 },
-    );
+
+  for (const u of [imageUrl, ...(imageUrls ?? []), videoUrl].filter(Boolean) as string[]) {
+    if (!/^https?:\/\//i.test(u)) {
+      return NextResponse.json(
+        { success: false, error: 'All media URLs must be fully-qualified http(s)' },
+        { status: 400 },
+      );
+    }
   }
 
-  // ── Post
-  try {
-    const result = await postToX({ text, imageUrl });
+  // Snapshot the source opportunity BEFORE we remove it so the persisted
+  // post record can carry topic/contentAngle for later display on the profile.
+  let oppTopic: string | undefined;
+  let oppAngle: string | undefined;
+  if (oppId) {
+    try {
+      const opps = await readOpportunities();
+      const opp = opps.find((o) => o.id === oppId);
+      oppTopic = opp?.topic;
+      oppAngle = opp?.contentAngle;
+    } catch (err) {
+      console.error('Failed to read opportunity for snapshot:', err);
+    }
+  }
 
-    // Side effect — drop the source opportunity from the store on success.
-    // Same intent as the existing "Use Draft" flow in the modal.
+  try {
+    const result = await postToX({ text, imageUrl, imageUrls, videoUrl });
+
     if (oppId) {
       try {
         await removeOpportunity(oppId);
       } catch (err) {
-        // Don't fail the response — the tweet is already out.
         console.error('Failed to remove opportunity after post:', err);
       }
+    }
+
+    // Persist the post for the profile feed. Best-effort — failures here
+    // must NOT fail the request because the tweet has already been sent.
+    try {
+      const handle = (process.env.VP_OWNER_HANDLE ?? 'jay').toLowerCase();
+      const stats = await fetchTweetSyndication(result.tweetId);
+      await savePost({
+        tweetId: result.tweetId,
+        handle,
+        text,
+        imageUrl,
+        postedAt: new Date().toISOString(),
+        opportunityTopic: oppTopic,
+        contentAngle: oppAngle,
+        xStats: stats
+          ? {
+              favoriteCount: stats.favoriteCount,
+              retweetCount: stats.retweetCount,
+              replyCount: stats.replyCount,
+              capturedAt: new Date().toISOString(),
+            }
+          : undefined,
+      });
+    } catch (err) {
+      console.error('Failed to persist post record:', err);
     }
 
     return NextResponse.json({
@@ -78,18 +123,12 @@ export async function POST(req: Request) {
       tweetId: result.tweetId,
       url: result.url,
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: err.message ?? 'Unknown posting error' },
-      { status: 500 },
-    );
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
 
-/**
- * GET /api/post-to-x — light status probe used by the dashboard to decide
- * whether to enable the Post Now button. Returns { configured: boolean }.
- */
 export async function GET() {
   return NextResponse.json({ configured: isPostingConfigured() });
 }

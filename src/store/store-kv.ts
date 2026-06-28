@@ -19,6 +19,7 @@
 import { Redis } from '@upstash/redis';
 import {
   StoredOpportunity,
+  StoredPost,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -27,6 +28,7 @@ import {
 const redis = Redis.fromEnv();
 
 const KEY = 'viralpulse:opportunities';
+const POSTS_KEY = (handle: string) => `viralpulse:posts:${handle.toLowerCase()}`;
 
 async function read(): Promise<StoredOpportunity[]> {
   const data = await redis.get<StoredOpportunity[]>(KEY);
@@ -60,5 +62,31 @@ export async function removeOpportunityKv(id: string): Promise<void> {
   await redis.set(
     KEY,
     current.filter((o) => o.id !== id),
+  );
+}
+
+// ─── Posts backend ───────────────────────────────────────────────────────
+
+async function readPosts(handle: string): Promise<StoredPost[]> {
+  const data = await redis.get<StoredPost[]>(POSTS_KEY(handle));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function savePostKv(post: StoredPost): Promise<void> {
+  const current = await readPosts(post.handle);
+  const dedup = current.filter((p) => p.tweetId !== post.tweetId);
+  await redis.set(POSTS_KEY(post.handle), [post, ...dedup]);
+}
+
+export async function readPostsKv(handle: string, limit?: number): Promise<StoredPost[]> {
+  const all = await readPosts(handle);
+  return typeof limit === 'number' ? all.slice(0, limit) : all;
+}
+
+export async function removePostKv(handle: string, tweetId: string): Promise<void> {
+  const current = await readPosts(handle);
+  await redis.set(
+    POSTS_KEY(handle),
+    current.filter((p) => p.tweetId !== tweetId),
   );
 }
