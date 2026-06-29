@@ -55,6 +55,7 @@ async function main() {
       tweetId: tweet.id,
       handle,
       text: tweet.text,
+      imageUrl: tweet.imageUrl,
       postedAt: tweet.createdAt,
       xStats: {
         favoriteCount: tweet.favoriteCount,

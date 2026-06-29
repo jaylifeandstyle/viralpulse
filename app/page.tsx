@@ -4,10 +4,10 @@ import { WaitlistForm } from '@/components/WaitlistForm';
 const FEATURES = [
   {
     title: 'Real-time story detection',
-    body: 'A hourly cron scans 6 BBC categories and trending X topics, then ranks each story for virality and audience fit.',
+    body: 'We watch breaking news and what’s rising on X around the clock, then surface only the stories most likely to land with your audience.',
   },
   {
-    title: 'Sharp drafts from Claude',
+    title: 'Sharp drafts in your voice',
     body: 'Each story becomes a journalist-grade tweet with angle, hook, and hashtags — ready to post in one tap.',
   },
   {

@@ -21,6 +21,11 @@ function syndicationToken(tweetId: string): string {
 
 export type TweetSyndication = {
   id: string;
+  /**
+   * Display text with the trailing media `t.co` link stripped (X strips
+   * it from its own UI too), using the syndication `display_text_range`
+   * hint when present.
+   */
   text: string;
   createdAt: string;
   author: {
@@ -28,6 +33,11 @@ export type TweetSyndication = {
     screenName: string;
     avatarUrl: string;
   };
+  /**
+   * First image URL from the tweet, if any. We display one image at a
+   * time on profile cards, so we don't need the full list yet.
+   */
+  imageUrl?: string;
   favoriteCount: number;
   retweetCount: number;
   replyCount: number;
@@ -48,15 +58,25 @@ export async function fetchTweetSyndication(
     if (!res.ok) return null;
     const d: Record<string, unknown> = await res.json();
     const user = (d.user ?? {}) as Record<string, unknown>;
+    const rawText = (d.text as string) ?? '';
+    const range = d.display_text_range as [number, number] | undefined;
+    const text =
+      range && typeof range[1] === 'number'
+        ? rawText.slice(0, range[1]).trimEnd()
+        : rawText;
+    const media = (d.mediaDetails as Array<Record<string, unknown>> | undefined) ?? [];
+    const firstImage = media.find((m) => typeof m.media_url_https === 'string')
+      ?.media_url_https as string | undefined;
     return {
       id: (d.id_str as string) ?? tweetId,
-      text: (d.text as string) ?? '',
+      text,
       createdAt: (d.created_at as string) ?? new Date().toISOString(),
       author: {
         name: (user.name as string) ?? '',
         screenName: (user.screen_name as string) ?? '',
         avatarUrl: (user.profile_image_url_https as string) ?? '',
       },
+      imageUrl: firstImage,
       favoriteCount: (d.favorite_count as number) ?? 0,
       retweetCount: (d.retweet_count as number) ?? 0,
       replyCount: (d.conversation_count as number) ?? 0,
