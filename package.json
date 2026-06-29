@@ -20,7 +20,8 @@
     "galaxy07": "tsx --env-file=.env.local src/scripts/run-galaxy07.ts",
     "telegram:setup": "tsx --env-file=.env.local src/scripts/telegram-setup.ts",
     "profile:edit": "tsx --env-file=.env.local src/scripts/profile-edit.ts",
-    "backfill:posts": "tsx --env-file=.env.local src/scripts/backfill-posts.ts"
+    "backfill:posts": "tsx --env-file=.env.local src/scripts/backfill-posts.ts",
+    "waitlist:list": "tsx --env-file=.env.local src/scripts/waitlist-list.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",

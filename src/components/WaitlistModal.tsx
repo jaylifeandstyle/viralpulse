@@ -11,7 +11,7 @@ type Props = {
 };
 
 const INTENT_COPY: Record<NonNullable<Props['intent']>, string> = {
-  like: 'Join the waitlist to like posts on ViralPulse.',
+  like: 'Join the waitlist to like posts on ViralPulse X.',
   comment: 'Join the waitlist to comment on posts.',
   reshare: 'Join the waitlist to reshare posts to your feed.',
   generic: 'Join the waitlist for early access.',
@@ -67,7 +67,7 @@ export function WaitlistModal({ open, intent = 'generic', onClose }: Props) {
       <div className="bg-gray-900 border border-sky-500/40 rounded-2xl w-full max-w-md shadow-2xl p-7">
         <div className="flex justify-between items-start gap-4 mb-4">
           <h2 className="text-xl font-bold text-white leading-tight">
-            {done ? 'You’re on the list' : 'ViralPulse is in early access'}
+            {done ? 'You’re on the list' : 'ViralPulse X is in early access'}
           </h2>
           <button
             onClick={onClose}
@@ -80,7 +80,7 @@ export function WaitlistModal({ open, intent = 'generic', onClose }: Props) {
 
         {done ? (
           <p className="text-sm text-gray-400 leading-relaxed">
-            Thanks — we will email you the moment ViralPulse opens to new accounts.
+            Thanks — we will email you the moment ViralPulse X opens to new accounts.
           </p>
         ) : (
           <>

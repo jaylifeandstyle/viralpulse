@@ -39,7 +39,7 @@ export default async function ProfilePage({ params }: { params: Params }) {
         {/* Tabs */}
         <div className="border-b border-gray-800 mt-6 flex">
           <div className="flex-1 text-center py-4 border-b-2 border-sky-500 text-sm font-semibold text-white">
-            Posts via ViralPulse
+            Posts via ViralPulse X
           </div>
         </div>
 

@@ -64,7 +64,7 @@ export function Post({ post, authorName, authorAvatarUrl, onEngagement }: Props)
           {/* Source opportunity badge */}
           {post.opportunityTopic && (
             <div className="text-xs text-blue-400/80 mt-0.5">
-              via ViralPulse · {post.opportunityTopic}
+              via ViralPulse X · {post.opportunityTopic}
             </div>
           )}
 

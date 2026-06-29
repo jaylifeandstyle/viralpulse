@@ -12,7 +12,7 @@ const FEATURES = [
   },
   {
     title: 'Engagement that stays on-platform',
-    body: 'Likes, comments, and reshares live on ViralPulse — your audience grows here, not somewhere else.',
+    body: 'Likes, comments, and reshares live on ViralPulse X — your audience grows here, not somewhere else.',
   },
 ];
 
@@ -32,7 +32,7 @@ export default function HomePage() {
           while you sleep.
         </h1>
         <p className="text-lg text-gray-400 mt-6 leading-relaxed max-w-xl mx-auto">
-          ViralPulse spots tomorrow’s stories today, drafts your post in your voice, and gives your work a home that isn’t someone else’s timeline.
+          ViralPulse X spots tomorrow’s stories today, drafts your post in your voice, and gives your work a home that isn’t someone else’s timeline.
         </p>
         <div className="mt-10">
           <WaitlistForm source="hero" />
@@ -61,7 +61,7 @@ export default function HomePage() {
       <section className="px-5 py-20 text-center max-w-2xl mx-auto">
         <h2 className="text-3xl font-bold tracking-tight">See it in action</h2>
         <p className="text-gray-400 mt-3">
-          Watch how ViralPulse is being used today on a live profile.
+          Watch how ViralPulse X is being used today on a live profile.
         </p>
         <Link
           href={`/@${ownerHandle}`}
@@ -77,7 +77,7 @@ export default function HomePage() {
           Get in on the next wave.
         </h2>
         <p className="text-gray-400 mt-2 text-sm">
-          We’ll email you the moment ViralPulse opens to new accounts.
+          We’ll email you the moment ViralPulse X opens to new accounts.
         </p>
         <div className="mt-6 max-w-md mx-auto">
           <WaitlistForm source="bottom" />
@@ -86,7 +86,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-gray-800 py-8 px-5 text-center text-xs text-gray-600">
-        © {new Date().getFullYear()} ViralPulse
+        © {new Date().getFullYear()} ViralPulse X
       </footer>
     </div>
   );
