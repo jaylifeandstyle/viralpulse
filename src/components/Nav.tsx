@@ -1,7 +1,5 @@
 import Link from 'next/link';
 
-const SHOW_DEV_UI = process.env.NEXT_PUBLIC_SHOW_DEV_UI === 'true';
-
 export function Nav() {
   const ownerHandle = (process.env.VP_OWNER_HANDLE ?? 'jlces').toLowerCase();
   return (
@@ -17,11 +15,9 @@ export function Nav() {
           <Link href={`/@${ownerHandle}`} className="text-gray-300 hover:text-white transition-colors">
             Profile
           </Link>
-          {SHOW_DEV_UI && (
-            <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors">
-              Dashboard
-            </Link>
-          )}
+          <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors">
+            Dashboard
+          </Link>
         </div>
       </div>
     </nav>
