@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { GalaxyOutput, GrowthMode } from '@/shared/types';
+import { ForYouFeed } from '@/components/ForYouFeed';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,6 +99,7 @@ export default function Dashboard() {
   const [activeGalaxy, setActiveGalaxy] = useState<GalaxyId>('galaxy.02');
   const [mode, setMode] = useState<GrowthMode>('pure_growth');
   const [aggressiveness, setAggressiveness] = useState(7);
+  const [feedTab, setFeedTab] = useState<'opportunities' | 'foryou'>('opportunities');
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
@@ -576,12 +578,36 @@ export default function Dashboard() {
 
           {/* ── Main Feed ── */}
           <div className="col-span-9">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-xl font-semibold">Hot Opportunities</h2>
-              <span className="text-sm text-gray-500">{opportunities.length} active</span>
+            {/* Feed toggle */}
+            <div className="flex items-center gap-6 mb-5 border-b border-gray-800">
+              <button
+                onClick={() => setFeedTab('opportunities')}
+                className={`cursor-pointer pb-3 -mb-px text-sm font-semibold transition-colors border-b-2 ${
+                  feedTab === 'opportunities'
+                    ? 'border-sky-500 text-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                Hot Opportunities
+              </button>
+              <button
+                onClick={() => setFeedTab('foryou')}
+                className={`cursor-pointer pb-3 -mb-px text-sm font-semibold transition-colors border-b-2 ${
+                  feedTab === 'foryou'
+                    ? 'border-sky-500 text-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                For You
+              </button>
+              {feedTab === 'opportunities' && (
+                <span className="ml-auto text-sm text-gray-500">{opportunities.length} active</span>
+              )}
             </div>
 
-            {opportunities.length === 0 ? (
+            {feedTab === 'foryou' ? (
+              <ForYouFeed />
+            ) : opportunities.length === 0 ? (
               <div className="text-center py-20 text-gray-600 border border-dashed border-gray-800 rounded-2xl space-y-3">
                 <p className="text-lg">No opportunities yet.</p>
                 {SHOW_DEV_UI ? (

@@ -1,17 +1,14 @@
 import { notFound } from 'next/navigation';
 import { readPosts } from '@/store/post-store';
 import { getProfile } from '@/lib/x-profile';
+import { featuredHandles } from '@/lib/featured';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { ProfileFeed } from '@/components/ProfileFeed';
 
 type Params = Promise<{ handle: string }>;
 
-// Single-profile launch — only the configured owner handle is valid.
-// All other [handle] paths 404 so the route doesn't act as a catch-all
-// for typos and conflicting top-level paths.
-function ownerHandle(): string {
-  return (process.env.VP_OWNER_HANDLE ?? 'jay').toLowerCase();
-}
+// Only featured handles (owner + brand) render. Everything else 404s so the
+// route doesn't act as a catch-all for typos and conflicting top-level paths.
 
 function parseHandle(raw: string): string | null {
   // URL-decoded path segment. We accept both '@jay' (X-style) and 'jay'.
@@ -24,7 +21,7 @@ function parseHandle(raw: string): string | null {
 export default async function ProfilePage({ params }: { params: Params }) {
   const { handle: raw } = await params;
   const handle = parseHandle(raw);
-  if (!handle || handle !== ownerHandle()) notFound();
+  if (!handle || !featuredHandles().includes(handle)) notFound();
 
   const [profile, posts] = await Promise.all([
     getProfile(handle),
