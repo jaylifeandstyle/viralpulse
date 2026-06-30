@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "ViralPulse X — AI growth intelligence for journalists and creators",
   description:
     "Spot tomorrow’s stories today. Sharp drafts in your voice. A home for your work that isn’t someone else’s timeline.",
+  icons: {
+    icon: { url: "/brand/favicon.svg", type: "image/svg+xml" },
+  },
 };
 
 export default function RootLayout({
