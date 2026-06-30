@@ -17,8 +17,16 @@ export const metadata: Metadata = {
   title: "ViralPulse X — AI growth intelligence for journalists and creators",
   description:
     "Spot tomorrow’s stories today. Sharp drafts in your voice. A home for your work that isn’t someone else’s timeline.",
+  manifest: "/brand/icons/site.webmanifest",
   icons: {
-    icon: { url: "/brand/favicon.svg", type: "image/svg+xml" },
+    // SVG first — modern browsers prefer it; PNG/ICO fall back for the rest.
+    icon: [
+      { url: "/brand/favicon.svg", type: "image/svg+xml" },
+      { url: "/brand/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/brand/icons/favicon.ico", sizes: "any" },
+    ],
+    apple: { url: "/brand/icons/apple-touch-icon.png", sizes: "180x180" },
   },
 };
 
