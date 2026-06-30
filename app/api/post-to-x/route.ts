@@ -1,11 +1,16 @@
 // POST /api/post-to-x
-// Body: { text, imageUrl?, imageUrls?, videoUrl?, oppId? }
+// Body: { text, imageUrl?, imageUrls?, videoUrl?, oppId?, accounts?: AccountId[] }
+//
+// Posts to one or more accounts. For each selected account it sends the
+// tweet, persists a StoredPost under that account's handle, and captures
+// initial X stats. Defaults to the owner account when `accounts` is omitted.
 
 import { NextResponse } from 'next/server';
 import { postToX, isPostingConfigured } from '@/lib/x-poster';
 import { readOpportunities, removeOpportunity } from '@/store/opportunity-store';
 import { savePost } from '@/store/post-store';
 import { fetchTweetSyndication } from '@/lib/x-syndication';
+import { AccountId, getPostingAccount, accountOptions } from '@/lib/x-accounts';
 
 function parseUrlList(raw: unknown): string[] | undefined {
   if (!Array.isArray(raw)) return undefined;
@@ -14,6 +19,22 @@ function parseUrlList(raw: unknown): string[] | undefined {
     .filter((u) => /^https?:\/\//i.test(u));
   return urls.length ? urls.slice(0, 2) : undefined;
 }
+
+function parseAccounts(raw: unknown): AccountId[] {
+  const valid: AccountId[] = ['owner', 'brand'];
+  if (!Array.isArray(raw)) return ['owner'];
+  const ids = raw.filter((x): x is AccountId => valid.includes(x as AccountId));
+  return ids.length ? [...new Set(ids)] : ['owner'];
+}
+
+type PostOutcome = {
+  accountId: AccountId;
+  handle: string;
+  ok: boolean;
+  tweetId?: string;
+  url?: string;
+  error?: string;
+};
 
 export async function POST(req: Request) {
   if (!isPostingConfigured()) {
@@ -34,6 +55,7 @@ export async function POST(req: Request) {
     imageUrls?: string[];
     videoUrl?: string;
     oppId?: string;
+    accounts?: AccountId[];
   };
   try {
     body = await req.json();
@@ -46,6 +68,7 @@ export async function POST(req: Request) {
   const imageUrls = parseUrlList(body.imageUrls);
   const videoUrl = body.videoUrl?.trim() || undefined;
   const oppId = body.oppId?.trim() || undefined;
+  const accounts = parseAccounts(body.accounts);
 
   if (!text) {
     return NextResponse.json({ success: false, error: 'text is required' }, { status: 400 });
@@ -66,8 +89,19 @@ export async function POST(req: Request) {
     }
   }
 
-  // Snapshot the source opportunity BEFORE we remove it so the persisted
-  // post record can carry topic/contentAngle for later display on the profile.
+  // Reject accounts that aren't actually configured (e.g. brand selected but
+  // its tokens are missing) before posting anything.
+  for (const id of accounts) {
+    if (!getPostingAccount(id)) {
+      return NextResponse.json(
+        { success: false, error: `Account "${id}" is not configured.` },
+        { status: 400 },
+      );
+    }
+  }
+
+  // Snapshot the source opportunity BEFORE we remove it so each persisted
+  // post record can carry topic/contentAngle for later display.
   let oppTopic: string | undefined;
   let oppAngle: string | undefined;
   if (oppId) {
@@ -81,54 +115,70 @@ export async function POST(req: Request) {
     }
   }
 
-  try {
-    const result = await postToX({ text, imageUrl, imageUrls, videoUrl });
-
-    if (oppId) {
-      try {
-        await removeOpportunity(oppId);
-      } catch (err) {
-        console.error('Failed to remove opportunity after post:', err);
-      }
-    }
-
-    // Persist the post for the profile feed. Best-effort — failures here
-    // must NOT fail the request because the tweet has already been sent.
+  const outcomes: PostOutcome[] = [];
+  for (const accountId of accounts) {
+    const account = getPostingAccount(accountId)!;
     try {
-      const handle = (process.env.VP_OWNER_HANDLE ?? 'jay').toLowerCase();
-      const stats = await fetchTweetSyndication(result.tweetId);
-      await savePost({
-        tweetId: result.tweetId,
-        handle,
-        text,
-        imageUrl,
-        postedAt: new Date().toISOString(),
-        opportunityTopic: oppTopic,
-        contentAngle: oppAngle,
-        xStats: stats
-          ? {
-              favoriteCount: stats.favoriteCount,
-              retweetCount: stats.retweetCount,
-              replyCount: stats.replyCount,
-              capturedAt: new Date().toISOString(),
-            }
-          : undefined,
-      });
-    } catch (err) {
-      console.error('Failed to persist post record:', err);
-    }
+      const result = await postToX({ text, imageUrl, imageUrls, videoUrl, accountId });
 
-    return NextResponse.json({
-      success: true,
-      tweetId: result.tweetId,
-      url: result.url,
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+      // Persist the post for this account's profile feed. Best-effort —
+      // failures here must NOT fail the request; the tweet is already sent.
+      try {
+        const stats = await fetchTweetSyndication(result.tweetId);
+        await savePost({
+          tweetId: result.tweetId,
+          handle: account.handle,
+          text,
+          imageUrl,
+          postedAt: new Date().toISOString(),
+          opportunityTopic: oppTopic,
+          contentAngle: oppAngle,
+          xStats: stats
+            ? {
+                favoriteCount: stats.favoriteCount,
+                retweetCount: stats.retweetCount,
+                replyCount: stats.replyCount,
+                capturedAt: new Date().toISOString(),
+              }
+            : undefined,
+        });
+      } catch (err) {
+        console.error('Failed to persist post record:', err);
+      }
+
+      outcomes.push({
+        accountId,
+        handle: account.handle,
+        ok: true,
+        tweetId: result.tweetId,
+        url: result.url,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      outcomes.push({ accountId, handle: account.handle, ok: false, error: msg });
+    }
   }
+
+  const anyOk = outcomes.some((o) => o.ok);
+
+  // Remove the opportunity once at least one post landed.
+  if (oppId && anyOk) {
+    try {
+      await removeOpportunity(oppId);
+    } catch (err) {
+      console.error('Failed to remove opportunity after post:', err);
+    }
+  }
+
+  return NextResponse.json(
+    { success: anyOk, results: outcomes },
+    { status: anyOk ? 200 : 500 },
+  );
 }
 
 export async function GET() {
-  return NextResponse.json({ configured: isPostingConfigured() });
+  return NextResponse.json({
+    configured: isPostingConfigured(),
+    accounts: accountOptions(),
+  });
 }

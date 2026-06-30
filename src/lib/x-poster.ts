@@ -4,34 +4,35 @@
 // Supports single image (legacy), up to 2 images (Galaxy.07), or one MP4 video.
 
 import { TwitterApi, ApiResponseError } from 'twitter-api-v2';
+import { AccountId, getPostingAccount, getPostingAccounts } from './x-accounts';
 
-let _writeClient: TwitterApi | null = null;
+// One client per account id, built lazily and reused.
+const _clients = new Map<AccountId, TwitterApi>();
 
-function getWriteClient(): TwitterApi {
-  if (_writeClient) return _writeClient;
+function getWriteClient(accountId: AccountId): TwitterApi {
+  const cached = _clients.get(accountId);
+  if (cached) return cached;
 
-  const appKey = process.env.X_CLIENT_ID;
-  const appSecret = process.env.X_CLIENT_SECRET;
-  const accessToken = process.env.X_ACCESS_TOKEN;
-  const accessSecret = process.env.X_ACCESS_TOKEN_SECRET;
-
-  if (!appKey || !appSecret || !accessToken || !accessSecret) {
+  const account = getPostingAccount(accountId);
+  if (!account) {
     throw new Error(
-      'X posting not configured. Need all four: X_CLIENT_ID, X_CLIENT_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET in .env.local.',
+      `X posting account "${accountId}" is not configured. ` +
+        `Check the relevant access-token env vars.`,
     );
   }
 
-  _writeClient = new TwitterApi({ appKey, appSecret, accessToken, accessSecret });
-  return _writeClient;
+  const client = new TwitterApi({
+    appKey: account.appKey,
+    appSecret: account.appSecret,
+    accessToken: account.accessToken,
+    accessSecret: account.accessSecret,
+  });
+  _clients.set(accountId, client);
+  return client;
 }
 
 export function isPostingConfigured(): boolean {
-  return !!(
-    process.env.X_CLIENT_ID &&
-    process.env.X_CLIENT_SECRET &&
-    process.env.X_ACCESS_TOKEN &&
-    process.env.X_ACCESS_TOKEN_SECRET
-  );
+  return getPostingAccounts().length > 0;
 }
 
 export type PostResult = {
@@ -47,6 +48,8 @@ export type PostOptions = {
   imageUrls?: string[];
   /** Direct MP4 URL — X allows one video OR images, not both. */
   videoUrl?: string;
+  /** Which account to post as. Defaults to the owner account. */
+  accountId?: AccountId;
 };
 
 export async function postToX(opts: PostOptions): Promise<PostResult> {
@@ -57,7 +60,7 @@ export async function postToX(opts: PostOptions): Promise<PostResult> {
     throw new Error(`Tweet is ${text.length} chars — over the 280-char limit.`);
   }
 
-  const client = getWriteClient();
+  const client = getWriteClient(opts.accountId ?? 'owner');
   const imageList = dedupeUrls([...(opts.imageUrls ?? []), imageUrl]);
 
   let media_ids: string[] | undefined;

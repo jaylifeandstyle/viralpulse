@@ -21,7 +21,8 @@
     "telegram:setup": "tsx --env-file=.env.local src/scripts/telegram-setup.ts",
     "profile:edit": "tsx --env-file=.env.local src/scripts/profile-edit.ts",
     "backfill:posts": "tsx --env-file=.env.local src/scripts/backfill-posts.ts",
-    "waitlist:list": "tsx --env-file=.env.local src/scripts/waitlist-list.ts"
+    "waitlist:list": "tsx --env-file=.env.local src/scripts/waitlist-list.ts",
+    "x:authorize": "tsx --env-file=.env.local src/scripts/x-authorize.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",

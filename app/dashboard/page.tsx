@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GalaxyOutput, GrowthMode } from '@/shared/types';
 import { ForYouFeed } from '@/components/ForYouFeed';
+import type { AccountOption } from '@/lib/x-accounts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,13 +115,24 @@ export default function Dashboard() {
   const [postingVideoUrl, setPostingVideoUrl] = useState('');
   const [postingInFlight, setPostingInFlight] = useState(false);
   const [postingConfigured, setPostingConfigured] = useState<boolean | null>(null);
+  // Accounts the app can post AS (owner / brand), and which are selected.
+  const [postAccounts, setPostAccounts] = useState<AccountOption[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   // Light probe — checks whether X access tokens are configured so we can
   // show the user a helpful message instead of letting them tap a dead button.
+  // Also pulls the list of post-able accounts for the Post Now selector.
   useEffect(() => {
     fetch('/api/post-to-x')
       .then(r => r.json())
-      .then(d => setPostingConfigured(!!d.configured))
+      .then(d => {
+        setPostingConfigured(!!d.configured);
+        const accts: AccountOption[] = d.accounts ?? [];
+        setPostAccounts(accts);
+        // Default selection: owner only (or the first account available).
+        const owner = accts.find(a => a.id === 'owner') ?? accts[0];
+        setSelectedAccounts(owner ? [owner.id] : []);
+      })
       .catch(() => setPostingConfigured(false));
   }, []);
 
@@ -379,6 +391,11 @@ export default function Dashboard() {
       return;
     }
 
+    if (selectedAccounts.length === 0) {
+      alert('Pick at least one account to post to.');
+      return;
+    }
+
     setPostingInFlight(true);
     try {
       const isG07 = postingOpportunity.galaxyId === 'galaxy.07';
@@ -392,20 +409,35 @@ export default function Dashboard() {
           imageUrls: isG07 && imageUrls.length ? imageUrls : undefined,
           videoUrl: postingVideoUrl.trim() || undefined,
           oppId: postingOpportunity.source === 'detector' ? postingOpportunity.id : undefined,
+          accounts: selectedAccounts,
         }),
       });
       const data = await res.json();
+      const results: { handle: string; ok: boolean; url?: string; error?: string }[] =
+        data.results ?? [];
+
       if (!res.ok || !data.success) {
-        throw new Error(data.error ?? 'Unknown error');
+        // Surface per-account errors when present, else a generic message.
+        const detail = results.length
+          ? results.map(r => `@${r.handle}: ${r.ok ? 'ok' : r.error}`).join('\n')
+          : (data.error ?? 'Unknown error');
+        throw new Error(detail);
       }
-      // Remove the opp from the local feed AFTER server confirms tweet sent
+
+      // Remove the opp from the local feed AFTER server confirms a tweet sent
       setOpportunities(prev => prev.filter(o => o.id !== postingOpportunity.id));
       setPostingOpportunity(null);
       setPostingText('');
       setPostingImageUrl('');
       setPostingImageUrl2('');
       setPostingVideoUrl('');
-      alert(`✅ Posted to X.\n\n${data.url}`);
+
+      const ok = results.filter(r => r.ok);
+      const failed = results.filter(r => !r.ok);
+      let msg = `✅ Posted to ${ok.map(r => '@' + r.handle).join(', ')}.`;
+      if (ok[0]?.url) msg += `\n\n${ok[0].url}`;
+      if (failed.length) msg += `\n\n⚠️ Failed: ${failed.map(r => '@' + r.handle + ' (' + r.error + ')').join(', ')}`;
+      alert(msg);
     } catch (err: any) {
       alert(`❌ Post failed:\n\n${err.message ?? err}`);
     } finally {
@@ -658,6 +690,13 @@ export default function Dashboard() {
           imageUrl2={postingImageUrl2}
           videoUrl={postingVideoUrl}
           inFlight={postingInFlight}
+          accounts={postAccounts}
+          selectedAccounts={selectedAccounts}
+          onToggleAccount={(id) =>
+            setSelectedAccounts(prev =>
+              prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+            )
+          }
           onTextChange={setPostingText}
           onImageUrlChange={setPostingImageUrl}
           onImageUrl2Change={setPostingImageUrl2}
@@ -967,6 +1006,9 @@ function PostConfirmModal({
   imageUrl2,
   videoUrl,
   inFlight,
+  accounts,
+  selectedAccounts,
+  onToggleAccount,
   onTextChange,
   onImageUrlChange,
   onImageUrl2Change,
@@ -980,6 +1022,9 @@ function PostConfirmModal({
   imageUrl2: string;
   videoUrl: string;
   inFlight: boolean;
+  accounts: AccountOption[];
+  selectedAccounts: string[];
+  onToggleAccount: (id: string) => void;
   onTextChange: (v: string) => void;
   onImageUrlChange: (v: string) => void;
   onImageUrl2Change: (v: string) => void;
@@ -989,7 +1034,7 @@ function PostConfirmModal({
 }) {
   const charCount = text.length;
   const overLimit = charCount > 280;
-  const disabled = inFlight || overLimit || !text.trim();
+  const disabled = inFlight || overLimit || !text.trim() || selectedAccounts.length === 0;
   const isG07 = opp.galaxyId === 'galaxy.07';
 
   return (
@@ -1006,7 +1051,7 @@ function PostConfirmModal({
                 🚀 Post directly to X
               </h2>
               <p className="text-sm text-gray-400 mt-1">
-                Review the draft, then confirm. This sends a real tweet from your account.
+                Review the draft, then confirm. This sends a real tweet from the selected account(s).
               </p>
             </div>
             <button
@@ -1020,6 +1065,36 @@ function PostConfirmModal({
         </div>
 
         <div className="px-7 py-6 space-y-5">
+
+          {/* Account selector */}
+          {accounts.length > 0 && (
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">
+                Post to {accounts.length > 1 && <span className="text-gray-600 normal-case font-normal">(select one or both)</span>}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {accounts.map(acct => {
+                  const on = selectedAccounts.includes(acct.id);
+                  return (
+                    <button
+                      key={acct.id}
+                      type="button"
+                      onClick={() => onToggleAccount(acct.id)}
+                      disabled={inFlight}
+                      className={`cursor-pointer px-3 py-2 rounded-xl text-sm font-medium border transition-colors disabled:opacity-50 ${
+                        on
+                          ? 'bg-sky-500/15 border-sky-500 text-sky-300'
+                          : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
+                      }`}
+                    >
+                      <span className="mr-1.5">{on ? '☑' : '☐'}</span>
+                      {acct.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="px-3 py-2 bg-gray-800/40 rounded-lg border border-gray-800">
             <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Topic</p>
