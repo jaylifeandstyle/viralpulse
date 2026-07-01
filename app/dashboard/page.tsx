@@ -90,6 +90,20 @@ function googleImagesUrl(query: string) {
   return `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`;
 }
 
+function preloadedImages(opp: Opportunity): string[] {
+  if (opp.imageUrls?.length) return opp.imageUrls.filter(Boolean);
+  if (opp.imageUrl) return [opp.imageUrl];
+  return [];
+}
+
+function hasRichMedia(opp: Opportunity): boolean {
+  return (
+    opp.galaxyId === 'galaxy.07' ||
+    (opp.imageUrls?.length ?? 0) > 0 ||
+    !!opp.videoUrl
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -113,6 +127,7 @@ export default function Dashboard() {
   const [postingImageUrl, setPostingImageUrl] = useState('');
   const [postingImageUrl2, setPostingImageUrl2] = useState('');
   const [postingVideoUrl, setPostingVideoUrl] = useState('');
+  const [postingMediaLoading, setPostingMediaLoading] = useState(false);
   const [postingInFlight, setPostingInFlight] = useState(false);
   const [postingConfigured, setPostingConfigured] = useState<boolean | null>(null);
   // Accounts the app can post AS (owner / brand), and which are selected.
@@ -346,7 +361,7 @@ export default function Dashboard() {
   // ─── Post Now handlers ─────────────────────────────────────────────────
   // Open a dedicated confirmation modal (NOT the Craft & Copy modal — kept
   // separate so the existing flow is untouched).
-  const openPostConfirm = (opp: Opportunity) => {
+  const openPostConfirm = async (opp: Opportunity) => {
     if (postingConfigured === false) {
       alert(
         'X posting is not configured.\n\n' +
@@ -360,14 +375,41 @@ export default function Dashboard() {
     }
     setPostingOpportunity(opp);
     setPostingText(opp.draft);
-    const imgs = opp.imageUrls?.length
-      ? opp.imageUrls
-      : opp.imageUrl
-        ? [opp.imageUrl]
-        : [];
+    const imgs = preloadedImages(opp);
     setPostingImageUrl(imgs[0] ?? '');
     setPostingImageUrl2(imgs[1] ?? '');
     setPostingVideoUrl(opp.videoUrl ?? '');
+
+    if (imgs.length === 0 && !opp.videoUrl) {
+      setPostingMediaLoading(true);
+      try {
+        const res = await fetch('/api/opportunities/enrich-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: opp.id }),
+        });
+        const data = await res.json();
+        if (data.success && (data.imageUrls?.length || data.videoUrl)) {
+          const urls: string[] = data.imageUrls ?? [];
+          setPostingImageUrl(urls[0] ?? '');
+          setPostingImageUrl2(urls[1] ?? '');
+          setPostingVideoUrl(data.videoUrl ?? '');
+          const patch = {
+            imageUrls: urls,
+            imageUrl: urls[0],
+            videoUrl: data.videoUrl as string | undefined,
+          };
+          setPostingOpportunity(prev => (prev ? { ...prev, ...patch } : prev));
+          setOpportunities(prev =>
+            prev.map(o => (o.id === opp.id ? { ...o, ...patch } : o)),
+          );
+        }
+      } catch {
+        // Modal still usable — user can paste a URL manually
+      } finally {
+        setPostingMediaLoading(false);
+      }
+    }
   };
 
   const closePostConfirm = () => {
@@ -377,6 +419,7 @@ export default function Dashboard() {
     setPostingImageUrl('');
     setPostingImageUrl2('');
     setPostingVideoUrl('');
+    setPostingMediaLoading(false);
   };
 
   const confirmPostNow = async () => {
@@ -398,15 +441,15 @@ export default function Dashboard() {
 
     setPostingInFlight(true);
     try {
-      const isG07 = postingOpportunity.galaxyId === 'galaxy.07';
       const imageUrls = [postingImageUrl.trim(), postingImageUrl2.trim()].filter(Boolean);
+      const useMultiImage = hasRichMedia(postingOpportunity) && imageUrls.length > 0;
       const res = await fetch('/api/post-to-x', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          imageUrl: !isG07 && postingImageUrl.trim() ? postingImageUrl.trim() : undefined,
-          imageUrls: isG07 && imageUrls.length ? imageUrls : undefined,
+          imageUrl: !useMultiImage && postingImageUrl.trim() ? postingImageUrl.trim() : undefined,
+          imageUrls: useMultiImage ? imageUrls : undefined,
           videoUrl: postingVideoUrl.trim() || undefined,
           oppId: postingOpportunity.source === 'detector' ? postingOpportunity.id : undefined,
           accounts: selectedAccounts,
@@ -473,10 +516,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="md:grid md:grid-cols-12 md:gap-6 space-y-6 md:space-y-0">
 
-          {/* ── Left Sidebar — Controls ── */}
-          <div className="col-span-3 space-y-6">
+          {/* ── Left Sidebar — Controls + Session ──
+              Hidden on mobile so the feed uses the full viewport width.
+              The pulsing "Detector live" pill in the page header still
+              carries the "app is alive" signal. */}
+          <div className="hidden md:block md:col-span-3 space-y-6">
             {SHOW_DEV_UI && (
             <div className="bg-gray-900 rounded-2xl p-5">
               <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-5">Controls</h2>
@@ -609,12 +655,12 @@ export default function Dashboard() {
           </div>
 
           {/* ── Main Feed ── */}
-          <div className="col-span-9">
+          <div className="md:col-span-9">
             {/* Feed toggle */}
             <div className="flex items-center gap-6 mb-5 border-b border-gray-800">
               <button
                 onClick={() => setFeedTab('opportunities')}
-                className={`cursor-pointer pb-3 -mb-px text-sm font-semibold transition-colors border-b-2 ${
+                className={`cursor-pointer pb-3 -mb-px text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${
                   feedTab === 'opportunities'
                     ? 'border-sky-500 text-white'
                     : 'border-transparent text-gray-500 hover:text-gray-300'
@@ -624,7 +670,7 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => setFeedTab('foryou')}
-                className={`cursor-pointer pb-3 -mb-px text-sm font-semibold transition-colors border-b-2 ${
+                className={`cursor-pointer pb-3 -mb-px text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${
                   feedTab === 'foryou'
                     ? 'border-sky-500 text-white'
                     : 'border-transparent text-gray-500 hover:text-gray-300'
@@ -689,6 +735,7 @@ export default function Dashboard() {
           imageUrl={postingImageUrl}
           imageUrl2={postingImageUrl2}
           videoUrl={postingVideoUrl}
+          mediaLoading={postingMediaLoading}
           inFlight={postingInFlight}
           accounts={postAccounts}
           selectedAccounts={selectedAccounts}
@@ -783,6 +830,23 @@ function OpportunityCard({
       {opp.draft && (
         <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 mb-3">
           <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">{opp.draft}</p>
+          {(preloadedImages(opp).length > 0 || opp.videoUrl) && (
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-700/50">
+              {preloadedImages(opp).map((url, i) => (
+                <img
+                  key={`${url}-${i}`}
+                  src={url}
+                  alt={`Pre-loaded image ${i + 1}`}
+                  className="h-16 w-16 rounded-lg object-cover border border-gray-700"
+                />
+              ))}
+              {opp.videoUrl && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/15 text-purple-300 text-xs border border-purple-500/30">
+                  🎬 Video ready
+                </span>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700/50">
             <span className={`text-xs ${charCountColor(opp.draft.length)}`}>
               {opp.draft.length}/280
@@ -1019,6 +1083,7 @@ function PostConfirmModal({
   imageUrl,
   imageUrl2,
   videoUrl,
+  mediaLoading,
   inFlight,
   accounts,
   selectedAccounts,
@@ -1035,6 +1100,7 @@ function PostConfirmModal({
   imageUrl: string;
   imageUrl2: string;
   videoUrl: string;
+  mediaLoading: boolean;
   inFlight: boolean;
   accounts: AccountOption[];
   selectedAccounts: string[];
@@ -1049,8 +1115,10 @@ function PostConfirmModal({
   useBodyScrollLock();
   const charCount = text.length;
   const overLimit = charCount > 280;
-  const disabled = inFlight || overLimit || !text.trim() || selectedAccounts.length === 0;
-  const isG07 = opp.galaxyId === 'galaxy.07';
+  const disabled = inFlight || mediaLoading || overLimit || !text.trim() || selectedAccounts.length === 0;
+  const richMedia = hasRichMedia(opp);
+  const showSecondImage = richMedia || !!imageUrl2.trim();
+  const showVideoField = richMedia || !!videoUrl.trim();
 
   return (
     <div
@@ -1141,9 +1209,12 @@ function PostConfirmModal({
 
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">
-              Image 1 {isG07 && <span className="text-sky-500/80">(G07)</span>}
+              Image 1 {richMedia && <span className="text-sky-500/80">(pre-loaded)</span>}
               <span className="text-gray-600 normal-case font-normal"> — optional, public http(s)</span>
             </label>
+            {mediaLoading && !imageUrl && (
+              <p className="text-xs text-sky-400 mb-2 animate-pulse">Finding engagement images…</p>
+            )}
             <input
               type="url"
               value={imageUrl}
@@ -1152,9 +1223,16 @@ function PostConfirmModal({
               placeholder="https://example.com/photo1.jpg"
               className="w-full bg-gray-800 rounded-xl px-4 py-3 text-white text-sm border border-gray-700 focus:border-sky-500 outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             />
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt="Image 1 preview"
+                className="mt-2 h-24 w-full max-w-xs rounded-lg object-cover border border-gray-700"
+              />
+            )}
           </div>
 
-          {isG07 && (
+          {showSecondImage && (
             <div>
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">
                 Image 2 <span className="text-gray-600 normal-case font-normal">— must differ from image 1</span>
@@ -1167,10 +1245,17 @@ function PostConfirmModal({
                 placeholder="https://example.com/photo2.jpg"
                 className="w-full bg-gray-800 rounded-xl px-4 py-3 text-white text-sm border border-gray-700 focus:border-sky-500 outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
+              {imageUrl2 && (
+                <img
+                  src={imageUrl2}
+                  alt="Image 2 preview"
+                  className="mt-2 h-24 w-full max-w-xs rounded-lg object-cover border border-gray-700"
+                />
+              )}
             </div>
           )}
 
-          {isG07 && (
+          {showVideoField && (
             <div>
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">
                 Video URL <span className="text-gray-600 normal-case font-normal">— direct .mp4 (Reddit clips)</span>
@@ -1190,7 +1275,7 @@ function PostConfirmModal({
             </div>
           )}
 
-          {!isG07 && (
+          {!richMedia && (
             <p className="text-xs text-gray-600 -mt-2">
               {imageUrl
                 ? <>Pre-filled from source. Clear to post text-only.</>
@@ -1210,7 +1295,7 @@ function PostConfirmModal({
             disabled={disabled}
             className="flex-1 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-900 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-semibold transition text-sm"
           >
-            {inFlight ? 'Posting…' : '🚀 Confirm — Post to X'}
+            {inFlight ? 'Posting…' : mediaLoading ? 'Loading media…' : '🚀 Confirm — Post to X'}
           </button>
           <button
             onClick={onCancel}
