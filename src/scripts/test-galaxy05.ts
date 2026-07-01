@@ -29,7 +29,8 @@ const userPrefs = {
   console.log(`\n═══════════════════════════════════════════`);
   console.log(`Got ${opps.length} opportunit${opps.length === 1 ? 'y' : 'ies'}\n`);
   for (const o of opps) {
-    console.log(`[${o.viralityScore}/100  conf:${o.confidence}%  shouldAct:${o.shouldAct}]`);
+    const variant = o.galaxyVariant ? ` [${o.galaxyVariant}]` : '';
+    console.log(`[${o.viralityScore}/100  conf:${o.confidence}%  shouldAct:${o.shouldAct}]${variant}`);
     console.log(`  ${o.topic.slice(0, 80)}`);
     console.log(`  ${o.draft.replace(/\n/g, '\n  ')}`);
     if (o.imageUrl) console.log(`  🖼 RSS image: ${o.imageUrl.slice(0, 60)}…`);

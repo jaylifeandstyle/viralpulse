@@ -67,6 +67,19 @@ export async function removeOpportunityKv(id: string): Promise<void> {
   );
 }
 
+export async function updateOpportunityKv(
+  id: string,
+  patch: Partial<StoredOpportunity>,
+): Promise<StoredOpportunity | null> {
+  const current = await read();
+  const idx = current.findIndex((o) => o.id === id);
+  if (idx === -1) return null;
+  const updated = { ...current[idx], ...patch };
+  current[idx] = updated;
+  await redis.set(KEY, current);
+  return updated;
+}
+
 // ─── Posts backend ───────────────────────────────────────────────────────
 
 async function readPosts(handle: string): Promise<StoredPost[]> {

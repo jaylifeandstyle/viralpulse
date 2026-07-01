@@ -6,7 +6,7 @@
 //
 // Cron mode defaults to Galaxy.04 (news-first, Haiku, ~$0.02/cycle). To run
 // a different galaxy, set GALAXY_CRON_MODE in Vercel env vars:
-//   GALAXY_CRON_MODE=galaxy.05   (hybrid — needs X_BEARER_TOKEN for trends)
+//   GALAXY_CRON_MODE=galaxy.07   (cross-platform fusion — no required X token)
 //   GALAXY_CRON_MODE=galaxy.04   (default)
 //   GALAXY_CRON_MODE=galaxy.03   (X Trends — needs X_BEARER_TOKEN)
 //
@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Galaxy04 } from '@/galaxies/galaxy.04';
 import { Galaxy03 } from '@/galaxies/galaxy.03';
 import { Galaxy05 } from '@/galaxies/galaxy.05';
+import { Galaxy07 } from '@/galaxies/galaxy.07';
 import { UserPreferences } from '@/shared/types';
 
 const DEFAULT_USER_PREFS: UserPreferences = {
@@ -42,9 +43,19 @@ async function handle(req: NextRequest) {
   const mode = (process.env.GALAXY_CRON_MODE ?? 'galaxy.04') as
     | 'galaxy.03'
     | 'galaxy.04'
-    | 'galaxy.05';
+    | 'galaxy.05'
+    | 'galaxy.07';
 
   try {
+    if (mode === 'galaxy.07') {
+      const galaxy = new Galaxy07();
+      const opps = await galaxy.runFusionAnalysis({
+        userPrefs: { ...DEFAULT_USER_PREFS, mode: 'pure_growth', aggressiveness: 9 },
+        pushToStore: true,
+      });
+      return NextResponse.json({ success: true, mode, pushed: opps.length });
+    }
+
     if (mode === 'galaxy.05') {
       const galaxy = new Galaxy05();
       const opps = await galaxy.runHybridAnalysis({

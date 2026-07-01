@@ -75,6 +75,19 @@ export async function removeOpportunityFile(id: string): Promise<void> {
   write(read().filter((o) => o.id !== id));
 }
 
+export async function updateOpportunityFile(
+  id: string,
+  patch: Partial<StoredOpportunity>,
+): Promise<StoredOpportunity | null> {
+  const current = read();
+  const idx = current.findIndex((o) => o.id === id);
+  if (idx === -1) return null;
+  const updated = { ...current[idx], ...patch };
+  current[idx] = updated;
+  write(current);
+  return updated;
+}
+
 // ─── Posts backend ───────────────────────────────────────────────────────
 
 function readPosts(handle: string): StoredPost[] {

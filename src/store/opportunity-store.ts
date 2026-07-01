@@ -31,6 +31,7 @@ type Backend = {
   read: () => Promise<StoredOpportunity[]>;
   push: (opp: StoredOpportunity) => Promise<boolean>;
   remove: (id: string) => Promise<void>;
+  update: (id: string, patch: Partial<StoredOpportunity>) => Promise<StoredOpportunity | null>;
 };
 
 let _backend: Backend | null = null;
@@ -60,6 +61,7 @@ async function getBackend(): Promise<Backend> {
       read: m.readOpportunitiesKv,
       push: m.pushOpportunityKv,
       remove: m.removeOpportunityKv,
+      update: m.updateOpportunityKv,
     };
   } else {
     const m = await import('./store-file');
@@ -68,6 +70,7 @@ async function getBackend(): Promise<Backend> {
       read: m.readOpportunitiesFile,
       push: m.pushOpportunityFile,
       remove: m.removeOpportunityFile,
+      update: m.updateOpportunityFile,
     };
   }
 
@@ -113,4 +116,13 @@ export async function pushOpportunity(opp: StoredOpportunity): Promise<void> {
 export async function removeOpportunity(id: string): Promise<void> {
   const b = await getBackend();
   await b.remove(id);
+}
+
+/** Patch fields on an existing opportunity (e.g. backfill media). */
+export async function updateOpportunity(
+  id: string,
+  patch: Partial<StoredOpportunity>,
+): Promise<StoredOpportunity | null> {
+  const b = await getBackend();
+  return b.update(id, patch);
 }

@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server';
 import { brain, GalaxyId } from '@/brain';
 
-const VALID: GalaxyId[] = ['galaxy.01', 'galaxy.02', 'galaxy.03', 'galaxy.04', 'galaxy.05'];
+const VALID: GalaxyId[] = ['galaxy.01', 'galaxy.02', 'galaxy.03', 'galaxy.04', 'galaxy.05', 'galaxy.07'];
 
 export async function GET() {
   return NextResponse.json({ success: true, activeGalaxy: brain.getActiveGalaxy() });

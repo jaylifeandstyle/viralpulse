@@ -5,8 +5,9 @@ import { Galaxy02 } from '@/galaxies/galaxy.02';
 import { Galaxy03 } from '@/galaxies/galaxy.03';
 import { Galaxy04 } from '@/galaxies/galaxy.04';
 import { Galaxy05 } from '@/galaxies/galaxy.05';
+import { Galaxy07 } from '@/galaxies/galaxy.07';
 
-export type GalaxyId = 'galaxy.01' | 'galaxy.02' | 'galaxy.03' | 'galaxy.04' | 'galaxy.05';
+export type GalaxyId = 'galaxy.01' | 'galaxy.02' | 'galaxy.03' | 'galaxy.04' | 'galaxy.05' | 'galaxy.07';
 
 export class Brain {
   private activeGalaxyId: GalaxyId = 'galaxy.02'; // Default — selective journalist strategy
@@ -31,6 +32,10 @@ export class Brain {
       }
       case 'galaxy.05': {
         result = await new Galaxy05().processOpportunity(signals, userPrefs);
+        break;
+      }
+      case 'galaxy.07': {
+        result = await new Galaxy07().processOpportunity(signals, userPrefs);
         break;
       }
       case 'galaxy.02':
