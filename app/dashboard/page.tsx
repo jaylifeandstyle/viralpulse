@@ -850,6 +850,19 @@ function OpportunityCard({
 }
 
 // ---------------------------------------------------------------------------
+// Body scroll lock — used while a modal is mounted so wheel/touch scrolling
+// affects the modal's own overflow-y-auto container instead of the page.
+// ---------------------------------------------------------------------------
+
+function useBodyScrollLock() {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+}
+
+// ---------------------------------------------------------------------------
 // DraftModal
 // ---------------------------------------------------------------------------
 
@@ -868,6 +881,7 @@ function DraftModal({
   onApprove: () => void;
   onClose: () => void;
 }) {
+  useBodyScrollLock();
   const charCount = draftText.length;
   const overLimit = charCount > 280;
 
@@ -876,7 +890,7 @@ function DraftModal({
       className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
 
         {/* Modal header */}
         <div className="px-7 pt-7 pb-5 border-b border-gray-800">
@@ -1032,6 +1046,7 @@ function PostConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  useBodyScrollLock();
   const charCount = text.length;
   const overLimit = charCount > 280;
   const disabled = inFlight || overLimit || !text.trim() || selectedAccounts.length === 0;
@@ -1042,7 +1057,7 @@ function PostConfirmModal({
       className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4"
       onClick={e => { if (e.target === e.currentTarget && !inFlight) onCancel(); }}
     >
-      <div className="bg-gray-900 border border-sky-500/40 rounded-2xl w-full max-w-2xl shadow-2xl">
+      <div className="bg-gray-900 border border-sky-500/40 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
 
         <div className="px-7 pt-7 pb-5 border-b border-gray-800">
           <div className="flex items-start justify-between gap-4">

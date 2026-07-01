@@ -32,6 +32,15 @@ export function WaitlistModal({ open, intent = 'generic', onClose }: Props) {
     }
   }, [open]);
 
+  // Lock body scroll while the modal is open so wheel/touch scrolling
+  // affects the modal instead of the page behind it.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   if (!open) return null;
 
   const submit = async (e: React.FormEvent) => {
@@ -64,7 +73,7 @@ export function WaitlistModal({ open, intent = 'generic', onClose }: Props) {
       className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-gray-900 border border-sky-500/40 rounded-2xl w-full max-w-md shadow-2xl p-7">
+      <div className="bg-gray-900 border border-sky-500/40 rounded-2xl w-full max-w-md shadow-2xl p-7 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-start gap-4 mb-4">
           <h2 className="text-xl font-bold text-white leading-tight">
             {done ? 'You’re on the list' : 'ViralPulse X is in early access'}
