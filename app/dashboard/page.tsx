@@ -127,7 +127,6 @@ export default function Dashboard() {
   const [postingImageUrl, setPostingImageUrl] = useState('');
   const [postingImageUrl2, setPostingImageUrl2] = useState('');
   const [postingVideoUrl, setPostingVideoUrl] = useState('');
-  const [postingMediaLoading, setPostingMediaLoading] = useState(false);
   const [postingInFlight, setPostingInFlight] = useState(false);
   const [postingConfigured, setPostingConfigured] = useState<boolean | null>(null);
   // Accounts the app can post AS (owner / brand), and which are selected.
@@ -361,7 +360,7 @@ export default function Dashboard() {
   // ─── Post Now handlers ─────────────────────────────────────────────────
   // Open a dedicated confirmation modal (NOT the Craft & Copy modal — kept
   // separate so the existing flow is untouched).
-  const openPostConfirm = async (opp: Opportunity) => {
+  const openPostConfirm = (opp: Opportunity) => {
     if (postingConfigured === false) {
       alert(
         'X posting is not configured.\n\n' +
@@ -379,37 +378,6 @@ export default function Dashboard() {
     setPostingImageUrl(imgs[0] ?? '');
     setPostingImageUrl2(imgs[1] ?? '');
     setPostingVideoUrl(opp.videoUrl ?? '');
-
-    if (imgs.length === 0 && !opp.videoUrl) {
-      setPostingMediaLoading(true);
-      try {
-        const res = await fetch('/api/opportunities/enrich-media', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: opp.id }),
-        });
-        const data = await res.json();
-        if (data.success && (data.imageUrls?.length || data.videoUrl)) {
-          const urls: string[] = data.imageUrls ?? [];
-          setPostingImageUrl(urls[0] ?? '');
-          setPostingImageUrl2(urls[1] ?? '');
-          setPostingVideoUrl(data.videoUrl ?? '');
-          const patch = {
-            imageUrls: urls,
-            imageUrl: urls[0],
-            videoUrl: data.videoUrl as string | undefined,
-          };
-          setPostingOpportunity(prev => (prev ? { ...prev, ...patch } : prev));
-          setOpportunities(prev =>
-            prev.map(o => (o.id === opp.id ? { ...o, ...patch } : o)),
-          );
-        }
-      } catch {
-        // Modal still usable — user can paste a URL manually
-      } finally {
-        setPostingMediaLoading(false);
-      }
-    }
   };
 
   const closePostConfirm = () => {
@@ -419,7 +387,6 @@ export default function Dashboard() {
     setPostingImageUrl('');
     setPostingImageUrl2('');
     setPostingVideoUrl('');
-    setPostingMediaLoading(false);
   };
 
   const confirmPostNow = async () => {
@@ -735,7 +702,6 @@ export default function Dashboard() {
           imageUrl={postingImageUrl}
           imageUrl2={postingImageUrl2}
           videoUrl={postingVideoUrl}
-          mediaLoading={postingMediaLoading}
           inFlight={postingInFlight}
           accounts={postAccounts}
           selectedAccounts={selectedAccounts}
@@ -1083,7 +1049,6 @@ function PostConfirmModal({
   imageUrl,
   imageUrl2,
   videoUrl,
-  mediaLoading,
   inFlight,
   accounts,
   selectedAccounts,
@@ -1100,7 +1065,6 @@ function PostConfirmModal({
   imageUrl: string;
   imageUrl2: string;
   videoUrl: string;
-  mediaLoading: boolean;
   inFlight: boolean;
   accounts: AccountOption[];
   selectedAccounts: string[];
@@ -1115,7 +1079,7 @@ function PostConfirmModal({
   useBodyScrollLock();
   const charCount = text.length;
   const overLimit = charCount > 280;
-  const disabled = inFlight || mediaLoading || overLimit || !text.trim() || selectedAccounts.length === 0;
+  const disabled = inFlight || overLimit || !text.trim() || selectedAccounts.length === 0;
   const richMedia = hasRichMedia(opp);
   const showSecondImage = richMedia || !!imageUrl2.trim();
   const showVideoField = richMedia || !!videoUrl.trim();
@@ -1212,9 +1176,6 @@ function PostConfirmModal({
               Image 1 {richMedia && <span className="text-sky-500/80">(pre-loaded)</span>}
               <span className="text-gray-600 normal-case font-normal"> — optional, public http(s)</span>
             </label>
-            {mediaLoading && !imageUrl && (
-              <p className="text-xs text-sky-400 mb-2 animate-pulse">Finding engagement images…</p>
-            )}
             <input
               type="url"
               value={imageUrl}
@@ -1295,7 +1256,7 @@ function PostConfirmModal({
             disabled={disabled}
             className="flex-1 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-900 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-semibold transition text-sm"
           >
-            {inFlight ? 'Posting…' : mediaLoading ? 'Loading media…' : '🚀 Confirm — Post to X'}
+            {inFlight ? 'Posting…' : '🚀 Confirm — Post to X'}
           </button>
           <button
             onClick={onCancel}
