@@ -15,6 +15,8 @@ import {
   StoredProfile,
   StoredProfileOverrides,
   StoredTarget,
+  StoredCandidate,
+  ActionBudget,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -225,4 +227,84 @@ export async function updateTargetFile(
   current[idx] = updated;
   writeTargets(ownerHandle, current);
   return updated;
+}
+
+// ─── Candidates backend (approval queue) ─────────────────────────────────
+
+const CANDIDATES_DIR = path.join(DATA_DIR, 'candidates');
+
+function ensureCandidatesDir() {
+  if (!fs.existsSync(CANDIDATES_DIR)) fs.mkdirSync(CANDIDATES_DIR, { recursive: true });
+}
+
+function candidatesPath(ownerHandle: string) {
+  return path.join(CANDIDATES_DIR, `${ownerHandle.toLowerCase()}.json`);
+}
+
+function readCandidatesRaw(ownerHandle: string): StoredCandidate[] {
+  ensureCandidatesDir();
+  const p = candidatesPath(ownerHandle);
+  if (!fs.existsSync(p)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+
+function writeCandidates(ownerHandle: string, candidates: StoredCandidate[]) {
+  ensureCandidatesDir();
+  fs.writeFileSync(candidatesPath(ownerHandle), JSON.stringify(candidates, null, 2), 'utf-8');
+}
+
+export async function readCandidatesFile(ownerHandle: string): Promise<StoredCandidate[]> {
+  return readCandidatesRaw(ownerHandle);
+}
+
+export async function saveCandidateFile(candidate: StoredCandidate): Promise<void> {
+  const current = readCandidatesRaw(candidate.ownerHandle);
+  const dedup = current.filter((c) => c.id !== candidate.id);
+  writeCandidates(candidate.ownerHandle, [candidate, ...dedup]);
+}
+
+export async function updateCandidateFile(
+  ownerHandle: string,
+  id: string,
+  patch: Partial<StoredCandidate>,
+): Promise<StoredCandidate | null> {
+  const current = readCandidatesRaw(ownerHandle);
+  const idx = current.findIndex((c) => c.id === id);
+  if (idx === -1) return null;
+  const updated = { ...current[idx], ...patch };
+  current[idx] = updated;
+  writeCandidates(ownerHandle, current);
+  return updated;
+}
+
+// ─── Action budget backend ───────────────────────────────────────────────
+
+const BUDGET_DIR = path.join(DATA_DIR, 'budget');
+
+function ensureBudgetDir() {
+  if (!fs.existsSync(BUDGET_DIR)) fs.mkdirSync(BUDGET_DIR, { recursive: true });
+}
+
+function budgetPath(ownerHandle: string, date: string) {
+  return path.join(BUDGET_DIR, `${ownerHandle.toLowerCase()}_${date}.json`);
+}
+
+export async function readBudgetFile(ownerHandle: string, date: string): Promise<ActionBudget | null> {
+  ensureBudgetDir();
+  const p = budgetPath(ownerHandle, date);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+export async function writeBudgetFile(budget: ActionBudget): Promise<void> {
+  ensureBudgetDir();
+  fs.writeFileSync(budgetPath(budget.ownerHandle, budget.date), JSON.stringify(budget, null, 2), 'utf-8');
 }

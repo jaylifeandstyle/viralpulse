@@ -4,10 +4,17 @@
     {
       "path": "/api/cron/poll",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/target-scan",
+      "schedule": "0 * * * *"
     }
   ],
   "functions": {
     "app/api/cron/poll/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/target-scan/route.ts": {
       "maxDuration": 60
     },
     "app/api/force-poll/route.ts": {
@@ -17,6 +24,12 @@
       "maxDuration": 60
     },
     "app/api/post-to-x/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/growth/scan/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/growth/candidates/[id]/route.ts": {
       "maxDuration": 30
     }
   }

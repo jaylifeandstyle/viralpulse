@@ -23,6 +23,8 @@ import {
   StoredProfile,
   StoredProfileOverrides,
   StoredTarget,
+  StoredCandidate,
+  ActionBudget,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -166,4 +168,51 @@ export async function updateTargetKv(
   current[idx] = updated;
   await redis.set(TARGETS_KEY(ownerHandle), current);
   return updated;
+}
+
+// ─── Candidates backend ──────────────────────────────────────────────────
+
+const CANDIDATES_KEY = (ownerHandle: string) =>
+  `viralpulse:candidates:${ownerHandle.toLowerCase()}`;
+
+async function readCandidatesRaw(ownerHandle: string): Promise<StoredCandidate[]> {
+  const data = await redis.get<StoredCandidate[]>(CANDIDATES_KEY(ownerHandle));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function readCandidatesKv(ownerHandle: string): Promise<StoredCandidate[]> {
+  return readCandidatesRaw(ownerHandle);
+}
+
+export async function saveCandidateKv(candidate: StoredCandidate): Promise<void> {
+  const current = await readCandidatesRaw(candidate.ownerHandle);
+  const dedup = current.filter((c) => c.id !== candidate.id);
+  await redis.set(CANDIDATES_KEY(candidate.ownerHandle), [candidate, ...dedup]);
+}
+
+export async function updateCandidateKv(
+  ownerHandle: string,
+  id: string,
+  patch: Partial<StoredCandidate>,
+): Promise<StoredCandidate | null> {
+  const current = await readCandidatesRaw(ownerHandle);
+  const idx = current.findIndex((c) => c.id === id);
+  if (idx === -1) return null;
+  const updated = { ...current[idx], ...patch };
+  current[idx] = updated;
+  await redis.set(CANDIDATES_KEY(ownerHandle), current);
+  return updated;
+}
+
+// ─── Action budget backend ───────────────────────────────────────────────
+
+const BUDGET_KEY = (ownerHandle: string, date: string) =>
+  `viralpulse:budget:${ownerHandle.toLowerCase()}:${date}`;
+
+export async function readBudgetKv(ownerHandle: string, date: string): Promise<ActionBudget | null> {
+  return (await redis.get<ActionBudget>(BUDGET_KEY(ownerHandle, date))) ?? null;
+}
+
+export async function writeBudgetKv(budget: ActionBudget): Promise<void> {
+  await redis.set(BUDGET_KEY(budget.ownerHandle, budget.date), budget);
 }

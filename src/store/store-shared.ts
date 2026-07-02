@@ -123,6 +123,74 @@ export type StoredTarget = {
   addedAt: string;
   /** ISO of the last action taken against this target — used for cool-downs. */
   lastActedAt?: string;
+  /** ISO of the last scan for tweets from this target — used to rate-limit scans. */
+  lastScannedAt?: string;
+  /** X numeric user id, cached after first lookup. */
+  xUserId?: string;
+};
+
+// ─── Growth candidates (G3 step 2 — approval queue) ──────────────────────
+// Each candidate is a drafted reply or quote-tweet awaiting the owner's
+// approval. Created by the target scanner, consumed by the queue UI.
+
+export type CandidateAction = 'reply' | 'quote_tweet';
+export type CandidateStatus =
+  | 'pending'
+  | 'approved'  // user approved, awaiting post
+  | 'posted'    // successfully sent
+  | 'rejected'  // user said no
+  | 'expired'   // stale, never acted on
+  | 'failed';   // post attempt errored
+
+export type StoredCandidate = {
+  id: string;
+  ownerHandle: string;
+  targetHandle: string;
+  /** The tweet we're reacting to. */
+  sourceTweetId: string;
+  sourceTweetText: string;
+  sourceTweetUrl: string;
+  /** Snapshot of engagement at scan time — signals if it's worth chasing. */
+  sourceLikeCount?: number;
+  sourceReplyCount?: number;
+  sourceRetweetCount?: number;
+  action: CandidateAction;
+  /** Claude's proposed reply/quote text. */
+  draft: string;
+  /** One-line rationale from Claude — helps quick approval. */
+  reasoning: string;
+  status: CandidateStatus;
+  createdAt: string;
+  /** After this ISO the candidate is considered stale (X conversations move fast). */
+  expiresAt: string;
+  /** When the user acted (approved/rejected). */
+  actedAt?: string;
+  /** Populated after a successful post. */
+  postedTweetId?: string;
+  postedUrl?: string;
+  /** Populated after a failed post. */
+  errorMessage?: string;
+};
+
+// ─── Action budget (G3 daily cap) ────────────────────────────────────────
+// Simple daily bucket keyed by owner + YYYY-MM-DD. Each successful
+// autonomous post decrements the day's remaining budget. Manual Post Now
+// is NOT counted here.
+
+export type ActionBudget = {
+  ownerHandle: string;
+  /** YYYY-MM-DD in the owner's timezone. */
+  date: string;
+  used: number;
+  limit: number;
+  /** Compact log of each spend for auditability. */
+  actions: Array<{
+    at: string;
+    type: CandidateAction;
+    targetHandle: string;
+    candidateId: string;
+    tweetId?: string;
+  }>;
 };
 
 export function isFresh(iso: string): boolean {

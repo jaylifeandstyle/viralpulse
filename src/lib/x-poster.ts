@@ -50,6 +50,10 @@ export type PostOptions = {
   videoUrl?: string;
   /** Which account to post as. Defaults to the owner account. */
   accountId?: AccountId;
+  /** When set, sends as a reply to this tweet id. */
+  replyToTweetId?: string;
+  /** When set, sends as a quote-tweet of this tweet id. Mutually exclusive with replyToTweetId. */
+  quoteTweetId?: string;
 };
 
 export async function postToX(opts: PostOptions): Promise<PostResult> {
@@ -73,12 +77,22 @@ export async function postToX(opts: PostOptions): Promise<PostResult> {
     media_ids = ids;
   }
 
+  if (opts.replyToTweetId && opts.quoteTweetId) {
+    throw new Error('Cannot set both replyToTweetId and quoteTweetId — pick one.');
+  }
+
   try {
     const payload: Parameters<TwitterApi['v2']['tweet']>[0] = { text };
     if (media_ids?.length === 1) {
       payload.media = { media_ids: [media_ids[0]] };
     } else if (media_ids?.length === 2) {
       payload.media = { media_ids: [media_ids[0], media_ids[1]] };
+    }
+    if (opts.replyToTweetId) {
+      payload.reply = { in_reply_to_tweet_id: opts.replyToTweetId };
+    }
+    if (opts.quoteTweetId) {
+      payload.quote_tweet_id = opts.quoteTweetId;
     }
     const tweet = await client.v2.tweet(payload);
     const id = tweet.data.id;
