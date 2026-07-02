@@ -256,8 +256,8 @@ export async function scanTargets(
   const perTargetCap = perTargetLimit();
 
   for (const target of targets) {
-    if (hoursSince(target.lastScannedAt) < SCAN_INTERVAL_HOURS) {
-      continue; // scanned recently, skip
+    if (!options.force && hoursSince(target.lastScannedAt) < SCAN_INTERVAL_HOURS) {
+      continue; // scanned recently, skip (manual force runs bypass)
     }
     if (usedForTarget(budget, target.handle) >= perTargetCap) {
       report.notes.push(`@${target.handle}: already hit per-target daily cap.`);
