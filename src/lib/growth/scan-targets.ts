@@ -136,6 +136,13 @@ type FetchedTweet = {
   url: string;
   isReply: boolean;
   isRetweet: boolean;
+  /**
+   * X's reply-permission setting on the source tweet. Only 'everyone'
+   * lets an arbitrary account reply. Anything else (mentionedUsers /
+   * following / subscribers / verified) blocks reply from us — we then
+   * flip the candidate's action to quote_tweet.
+   */
+  replySettings: string;
 };
 
 async function fetchTargetTweets(
@@ -148,7 +155,13 @@ async function fetchTargetTweets(
     const res = await client.v2.userTimeline(userId, {
       max_results: TWEETS_PER_TARGET,
       exclude: ['retweets', 'replies'],
-      'tweet.fields': ['text', 'created_at', 'public_metrics', 'referenced_tweets'],
+      'tweet.fields': [
+        'text',
+        'created_at',
+        'public_metrics',
+        'referenced_tweets',
+        'reply_settings',
+      ],
     });
     const r = asObj(res);
     const items = ((asObj(r._realData).data ?? []) as Loose[]).concat((r.data as Loose[]) ?? []);
@@ -165,6 +178,7 @@ async function fetchTargetTweets(
         url: `https://x.com/${target.handle}/status/${t.id ?? ''}`,
         isReply: refs.some((r) => r.type === 'replied_to'),
         isRetweet: refs.some((r) => r.type === 'retweeted'),
+        replySettings: (t.reply_settings as string) ?? 'everyone',
       };
     });
   } catch (err) {
@@ -312,6 +326,19 @@ export async function scanTargets(
           );
           continue;
         }
+        // X only allows an arbitrary account to reply when reply_settings
+        // is 'everyone'. If restricted (following / mentionedUsers /
+        // subscribers / verified), force the candidate to quote-tweet so
+        // approval doesn't 403 at post time. Quote-tweets also often
+        // convert better for follower growth (surface to our audience).
+        const canReply = tweet.replySettings === 'everyone';
+        const action: 'reply' | 'quote_tweet' =
+          result.action === 'reply' && !canReply ? 'quote_tweet' : result.action;
+        if (result.action === 'reply' && !canReply) {
+          report.notes.push(
+            `@${target.handle}: reply blocked (reply_settings=${tweet.replySettings}) — converted to quote-tweet.`,
+          );
+        }
         const candidate: StoredCandidate = {
           id: candidateId(target.handle, tweet.id),
           ownerHandle,
@@ -322,7 +349,7 @@ export async function scanTargets(
           sourceLikeCount: tweet.likeCount,
           sourceReplyCount: tweet.replyCount,
           sourceRetweetCount: tweet.retweetCount,
-          action: result.action,
+          action,
           draft: result.draft,
           reasoning: result.reasoning,
           status: 'pending',

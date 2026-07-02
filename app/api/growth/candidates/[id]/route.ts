@@ -95,8 +95,10 @@ export async function PATCH(req: Request, ctx: { params: Params }) {
     );
   }
 
-  // Post to X.
+  // Post to X. If a reply is blocked by the target's reply_settings, retry
+  // as a quote-tweet automatically — the payload is identical from our side.
   let postResult: { tweetId: string; url: string };
+  let effectiveAction: 'reply' | 'quote_tweet' = candidate.action;
   try {
     postResult = await postToX({
       text: finalDraft,
@@ -106,19 +108,42 @@ export async function PATCH(req: Request, ctx: { params: Params }) {
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    await updateCandidate(owner, id, {
-      status: 'failed',
-      actedAt: nowIso,
-      draft: finalDraft,
-      errorMessage: msg,
-    });
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    const replyBlocked =
+      candidate.action === 'reply' &&
+      /Reply to this conversation is not allowed/i.test(msg);
+    if (replyBlocked) {
+      try {
+        postResult = await postToX({
+          text: finalDraft,
+          accountId: 'owner',
+          quoteTweetId: candidate.sourceTweetId,
+        });
+        effectiveAction = 'quote_tweet';
+      } catch (retryErr: unknown) {
+        const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        await updateCandidate(owner, id, {
+          status: 'failed',
+          actedAt: nowIso,
+          draft: finalDraft,
+          errorMessage: `Reply blocked, quote-tweet retry also failed: ${retryMsg}`,
+        });
+        return NextResponse.json({ success: false, error: retryMsg }, { status: 500 });
+      }
+    } else {
+      await updateCandidate(owner, id, {
+        status: 'failed',
+        actedAt: nowIso,
+        draft: finalDraft,
+        errorMessage: msg,
+      });
+      return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    }
   }
 
   // Record on both sides — budget + candidate + post store.
   await recordAction({
     ownerHandle: owner,
-    action: candidate.action,
+    action: effectiveAction,
     targetHandle: candidate.targetHandle,
     candidateId: candidate.id,
     tweetId: postResult.tweetId,
@@ -126,6 +151,7 @@ export async function PATCH(req: Request, ctx: { params: Params }) {
 
   await updateCandidate(owner, id, {
     status: 'posted',
+    action: effectiveAction,
     actedAt: nowIso,
     draft: finalDraft,
     postedTweetId: postResult.tweetId,
