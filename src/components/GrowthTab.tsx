@@ -184,13 +184,14 @@ export function GrowthTab() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error ?? 'Approve failed');
-      // Success — refresh
-      await loadQueue();
       setEdits(prev => { const n = { ...prev }; delete n[c.id]; return n; });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setActingId(null);
+      // Refresh even on failure so the stale card disappears and we don't
+      // hit "Candidate already failed" on subsequent clicks.
+      await loadQueue();
     }
   };
 
@@ -205,11 +206,11 @@ export function GrowthTab() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error ?? 'Reject failed');
-      await loadQueue();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setActingId(null);
+      await loadQueue();
     }
   };
 

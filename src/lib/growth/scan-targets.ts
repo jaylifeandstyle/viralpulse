@@ -259,11 +259,15 @@ export async function scanTargets(
     fetchOwnerVoice(client, ownerHandle, report.notes),
   ]);
 
-  // Fast-lookup set of source tweet ids we've already got in the queue for
-  // this owner — dedupes across scans so we never draft the same tweet twice.
+  // Fast-lookup set of source tweet ids we've already handled for this
+  // owner — dedupes across scans so we never draft the same tweet twice.
+  // We deliberately exclude 'failed' candidates so a fresh scan can
+  // regenerate them (with the current code paths + any fixes since the
+  // last attempt). Save-side dedupe by candidate id will replace the
+  // failed record with the fresh pending one.
   const draftedTweetIds = new Set(
     existingCandidates
-      .filter((c) => c.ownerHandle === ownerHandle)
+      .filter((c) => c.ownerHandle === ownerHandle && c.status !== 'failed')
       .map((c) => c.sourceTweetId),
   );
 
