@@ -295,15 +295,21 @@ export async function scanTargets(
 
     for (const tweet of top) {
       try {
-        const draft = await draftCandidate({
+        const result = await draftCandidate({
           ownerHandle,
           targetHandle: target.handle,
           targetBio: target.bio,
           sourceTweetText: tweet.text,
           voiceSamples: voice,
         });
-        if (!draft) {
+        if (result.kind === 'skip') {
           report.candidatesSkipped++;
+          // Surface Claude's rationale so we can see why every skip happens
+          // instead of just a count. This is the diagnostic signal for
+          // tuning the drafting prompt.
+          report.notes.push(
+            `@${target.handle}: skipped — ${result.reasoning || '(no reason)'}`,
+          );
           continue;
         }
         const candidate: StoredCandidate = {
@@ -316,9 +322,9 @@ export async function scanTargets(
           sourceLikeCount: tweet.likeCount,
           sourceReplyCount: tweet.replyCount,
           sourceRetweetCount: tweet.retweetCount,
-          action: draft.action,
-          draft: draft.draft,
-          reasoning: draft.reasoning,
+          action: result.action,
+          draft: result.draft,
+          reasoning: result.reasoning,
           status: 'pending',
           createdAt: nowIso(),
           expiresAt: new Date(Date.now() + CANDIDATE_EXPIRY_HOURS * 3_600_000).toISOString(),

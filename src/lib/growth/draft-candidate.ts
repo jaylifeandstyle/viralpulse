@@ -17,11 +17,9 @@ export type DraftCandidateInput = {
   voiceSamples: string[];
 };
 
-export type DraftCandidateOutput = {
-  draft: string;
-  reasoning: string;
-  action: 'reply' | 'quote_tweet';
-};
+export type DraftCandidateOutput =
+  | { kind: 'draft'; draft: string; reasoning: string; action: 'reply' | 'quote_tweet' }
+  | { kind: 'skip'; reasoning: string };
 
 const SYSTEM_PROMPT = `
 You draft short, sharp X (Twitter) replies and quote-tweets on behalf of the
@@ -81,7 +79,7 @@ function extractJson(text: string): unknown {
 
 export async function draftCandidate(
   input: DraftCandidateInput,
-): Promise<DraftCandidateOutput | null> {
+): Promise<DraftCandidateOutput> {
   const client = getAnthropic();
 
   const voice =
@@ -120,16 +118,22 @@ export async function draftCandidate(
     draft?: string | null;
     reasoning?: string;
   };
+  const reasoning = (parsed.reasoning ?? '').trim().slice(0, 200);
 
   const draft = (parsed.draft ?? '').trim();
-  if (!draft) return null;
-  if (draft.length > 280) return null; // safety net — Claude sometimes overruns
+  if (!draft) {
+    return { kind: 'skip', reasoning: reasoning || '(no reason returned)' };
+  }
+  if (draft.length > 280) {
+    // Preserve Claude's rationale and surface the overrun so we can decide
+    // whether to loosen the prompt or add a trim-retry loop later.
+    return {
+      kind: 'skip',
+      reasoning: `draft exceeded 280 chars (${draft.length}) — "${draft.slice(0, 60)}…"`,
+    };
+  }
 
   const action: 'reply' | 'quote_tweet' =
     parsed.action === 'quote_tweet' ? 'quote_tweet' : 'reply';
-  return {
-    draft,
-    action,
-    reasoning: (parsed.reasoning ?? '').trim().slice(0, 200),
-  };
+  return { kind: 'draft', draft, action, reasoning };
 }
