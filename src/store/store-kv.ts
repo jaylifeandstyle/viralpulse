@@ -22,6 +22,7 @@ import {
   StoredPost,
   StoredProfile,
   StoredProfileOverrides,
+  StoredTarget,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -114,4 +115,55 @@ export async function readProfileOverridesKv(handle: string): Promise<StoredProf
 
 export async function writeProfileOverridesKv(o: StoredProfileOverrides): Promise<void> {
   await redis.set(OVERRIDES_KEY(o.handle), o);
+}
+
+// ─── Targets backend ─────────────────────────────────────────────────────
+
+const TARGETS_KEY = (ownerHandle: string) =>
+  `viralpulse:targets:${ownerHandle.toLowerCase()}`;
+
+async function readTargets(ownerHandle: string): Promise<StoredTarget[]> {
+  const data = await redis.get<StoredTarget[]>(TARGETS_KEY(ownerHandle));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function readTargetsKv(ownerHandle: string): Promise<StoredTarget[]> {
+  return readTargets(ownerHandle);
+}
+
+export async function saveTargetsKv(
+  ownerHandle: string,
+  targets: StoredTarget[],
+): Promise<void> {
+  const existing = await readTargets(ownerHandle);
+  const incoming = new Map(targets.map((t) => [t.handle.toLowerCase(), t]));
+  const merged = existing.map((t) => incoming.get(t.handle.toLowerCase()) ?? t);
+  for (const t of targets) {
+    if (!existing.some((e) => e.handle.toLowerCase() === t.handle.toLowerCase())) {
+      merged.push(t);
+    }
+  }
+  await redis.set(TARGETS_KEY(ownerHandle), merged);
+}
+
+export async function removeTargetKv(ownerHandle: string, handle: string): Promise<void> {
+  const current = await readTargets(ownerHandle);
+  await redis.set(
+    TARGETS_KEY(ownerHandle),
+    current.filter((t) => t.handle.toLowerCase() !== handle.toLowerCase()),
+  );
+}
+
+export async function updateTargetKv(
+  ownerHandle: string,
+  handle: string,
+  patch: Partial<StoredTarget>,
+): Promise<StoredTarget | null> {
+  const current = await readTargets(ownerHandle);
+  const idx = current.findIndex((t) => t.handle.toLowerCase() === handle.toLowerCase());
+  if (idx === -1) return null;
+  const updated = { ...current[idx], ...patch };
+  current[idx] = updated;
+  await redis.set(TARGETS_KEY(ownerHandle), current);
+  return updated;
 }

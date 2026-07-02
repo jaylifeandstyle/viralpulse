@@ -14,6 +14,7 @@ import {
   StoredPost,
   StoredProfile,
   StoredProfileOverrides,
+  StoredTarget,
   MAX_ITEMS,
   isFresh,
   isRecentDuplicate,
@@ -154,4 +155,74 @@ export async function readProfileOverridesFile(handle: string): Promise<StoredPr
 export async function writeProfileOverridesFile(o: StoredProfileOverrides): Promise<void> {
   ensureProfilesDir();
   fs.writeFileSync(overridesPath(o.handle), JSON.stringify(o, null, 2), 'utf-8');
+}
+
+// ─── Targets backend ─────────────────────────────────────────────────────
+
+const TARGETS_DIR = path.join(DATA_DIR, 'targets');
+
+function ensureTargetsDir() {
+  if (!fs.existsSync(TARGETS_DIR)) fs.mkdirSync(TARGETS_DIR, { recursive: true });
+}
+
+function targetsPath(ownerHandle: string) {
+  return path.join(TARGETS_DIR, `${ownerHandle.toLowerCase()}.json`);
+}
+
+function readTargetsRaw(ownerHandle: string): StoredTarget[] {
+  ensureTargetsDir();
+  const p = targetsPath(ownerHandle);
+  if (!fs.existsSync(p)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+
+function writeTargets(ownerHandle: string, targets: StoredTarget[]) {
+  ensureTargetsDir();
+  fs.writeFileSync(targetsPath(ownerHandle), JSON.stringify(targets, null, 2), 'utf-8');
+}
+
+export async function readTargetsFile(ownerHandle: string): Promise<StoredTarget[]> {
+  return readTargetsRaw(ownerHandle);
+}
+
+export async function saveTargetsFile(
+  ownerHandle: string,
+  targets: StoredTarget[],
+): Promise<void> {
+  // Upsert semantics: incoming list replaces any existing entries for the
+  // same handles, other handles are left alone.
+  const existing = readTargetsRaw(ownerHandle);
+  const incoming = new Map(targets.map((t) => [t.handle.toLowerCase(), t]));
+  const merged = existing.map((t) => incoming.get(t.handle.toLowerCase()) ?? t);
+  for (const t of targets) {
+    if (!existing.some((e) => e.handle.toLowerCase() === t.handle.toLowerCase())) {
+      merged.push(t);
+    }
+  }
+  writeTargets(ownerHandle, merged);
+}
+
+export async function removeTargetFile(ownerHandle: string, handle: string): Promise<void> {
+  writeTargets(
+    ownerHandle,
+    readTargetsRaw(ownerHandle).filter((t) => t.handle.toLowerCase() !== handle.toLowerCase()),
+  );
+}
+
+export async function updateTargetFile(
+  ownerHandle: string,
+  handle: string,
+  patch: Partial<StoredTarget>,
+): Promise<StoredTarget | null> {
+  const current = readTargetsRaw(ownerHandle);
+  const idx = current.findIndex((t) => t.handle.toLowerCase() === handle.toLowerCase());
+  if (idx === -1) return null;
+  const updated = { ...current[idx], ...patch };
+  current[idx] = updated;
+  writeTargets(ownerHandle, current);
+  return updated;
 }

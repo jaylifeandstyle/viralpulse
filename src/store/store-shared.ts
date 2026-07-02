@@ -101,6 +101,30 @@ export type StoredProfileOverrides = {
   updatedAt: string;
 };
 
+// ─── Growth targets (G3) ─────────────────────────────────────────────────
+// The curated set of accounts we reply to / quote-tweet to grow the owner
+// account's audience. Keyed by owner handle so the multi-user future is
+// zero-migration.
+
+export type StoredTarget = {
+  /** Owner whose target list this belongs to. */
+  ownerHandle: string;
+  /** Target account handle, lowercase, no '@'. */
+  handle: string;
+  displayName?: string;
+  bio?: string;
+  followersCount?: number;
+  /** Claude's one-line justification when the target was proposed. */
+  reason?: string;
+  /** How this target got on the list. */
+  source: 'claude' | 'manual';
+  /** Lifecycle. */
+  status: 'active' | 'paused' | 'dropped';
+  addedAt: string;
+  /** ISO of the last action taken against this target — used for cool-downs. */
+  lastActedAt?: string;
+};
+
 export function isFresh(iso: string): boolean {
   return Date.now() - new Date(iso).getTime() < MAX_AGE_HOURS * 60 * 60 * 1000;
 }

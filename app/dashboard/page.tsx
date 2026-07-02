@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GalaxyOutput, GrowthMode } from '@/shared/types';
 import { ForYouFeed } from '@/components/ForYouFeed';
+import { GrowthTab } from '@/components/GrowthTab';
 import type { AccountOption } from '@/lib/x-accounts';
 
 // ---------------------------------------------------------------------------
@@ -114,7 +115,7 @@ export default function Dashboard() {
   const [activeGalaxy, setActiveGalaxy] = useState<GalaxyId>('galaxy.02');
   const [mode, setMode] = useState<GrowthMode>('pure_growth');
   const [aggressiveness, setAggressiveness] = useState(7);
-  const [feedTab, setFeedTab] = useState<'opportunities' | 'foryou'>('opportunities');
+  const [feedTab, setFeedTab] = useState<'opportunities' | 'foryou' | 'growth'>('opportunities');
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
@@ -645,12 +646,24 @@ export default function Dashboard() {
               >
                 For You
               </button>
+              <button
+                onClick={() => setFeedTab('growth')}
+                className={`cursor-pointer pb-3 -mb-px text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${
+                  feedTab === 'growth'
+                    ? 'border-sky-500 text-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                Growth
+              </button>
               {feedTab === 'opportunities' && (
                 <span className="ml-auto text-sm text-gray-500">{opportunities.length} active</span>
               )}
             </div>
 
-            {feedTab === 'foryou' ? (
+            {feedTab === 'growth' ? (
+              <GrowthTab />
+            ) : feedTab === 'foryou' ? (
               <ForYouFeed />
             ) : opportunities.length === 0 ? (
               <div className="text-center py-20 text-gray-600 border border-dashed border-gray-800 rounded-2xl space-y-3">
