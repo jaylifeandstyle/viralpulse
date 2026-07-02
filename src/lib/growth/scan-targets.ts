@@ -203,7 +203,19 @@ async function fetchOwnerVoice(
   }
 }
 
-export async function scanTargets(ownerHandle: string): Promise<ScanReport> {
+export type ScanOptions = {
+  /**
+   * When true, the quiet-hours check is skipped. Set from manual "Scan
+   * now" triggers where the human is actively watching; the cron path
+   * always respects quiet hours.
+   */
+  force?: boolean;
+};
+
+export async function scanTargets(
+  ownerHandle: string,
+  options: ScanOptions = {},
+): Promise<ScanReport> {
   const report: ScanReport = {
     targetsConsidered: 0,
     targetsScanned: 0,
@@ -213,7 +225,7 @@ export async function scanTargets(ownerHandle: string): Promise<ScanReport> {
     quietSkipped: false,
   };
 
-  if (isQuietNow()) {
+  if (!options.force && isQuietNow()) {
     report.quietSkipped = true;
     report.notes.push(`Quiet hours in ${timezone()} — scan skipped.`);
     return report;

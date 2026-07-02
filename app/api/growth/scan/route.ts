@@ -12,7 +12,9 @@ function ownerHandle(): string {
 
 export async function POST() {
   try {
-    const report = await scanTargets(ownerHandle());
+    // Manual triggers bypass quiet hours — the user is actively driving
+    // and expects the button to actually do something.
+    const report = await scanTargets(ownerHandle(), { force: true });
     return NextResponse.json({ success: true, report });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
